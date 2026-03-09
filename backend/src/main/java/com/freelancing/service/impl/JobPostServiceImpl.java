@@ -13,7 +13,7 @@ import com.freelancing.repository.JobPostRepository;
 import com.freelancing.repository.SkillRepository;
 import com.freelancing.service.JobPostService;
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,7 +31,6 @@ public class JobPostServiceImpl implements JobPostService {
     private final JobPostRepository jobPostRepo;
     private final ClientProfileRepository clientRepo;
     private final SkillRepository skillRepo;
-    private final ModelMapper modelMapper;
 
     @Override
     public Page<JobPostResponse> getAllJobs(Pageable pageable) {

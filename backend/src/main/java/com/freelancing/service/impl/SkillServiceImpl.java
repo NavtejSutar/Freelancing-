@@ -1,5 +1,12 @@
 package com.freelancing.service.impl;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.modelmapper.ModelMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.freelancing.dto.request.SkillRequest;
 import com.freelancing.dto.response.SkillResponse;
 import com.freelancing.entity.Skill;
@@ -9,13 +16,8 @@ import com.freelancing.exception.ResourceNotFoundException;
 import com.freelancing.repository.SkillCategoryRepository;
 import com.freelancing.repository.SkillRepository;
 import com.freelancing.service.SkillService;
-import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -99,7 +101,7 @@ public class SkillServiceImpl implements SkillService {
         return categoryRepo.findAll();
     }
 
-    @Override
+
     @Transactional
     public SkillCategory createCategory(String name, String description) {
         if (categoryRepo.existsByName(name)) {
@@ -113,7 +115,7 @@ public class SkillServiceImpl implements SkillService {
         return categoryRepo.save(category);
     }
 
-    @Override
+
     @Transactional
     public void deleteCategory(Long id) {
         SkillCategory category = categoryRepo.findById(id)

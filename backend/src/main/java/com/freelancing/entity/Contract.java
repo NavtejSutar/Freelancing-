@@ -35,6 +35,7 @@ public class Contract extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private ContractStatus status = ContractStatus.ACTIVE;
 
     @ManyToOne(fetch = FetchType.LAZY)

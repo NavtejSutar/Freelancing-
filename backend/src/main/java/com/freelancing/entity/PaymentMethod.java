@@ -21,6 +21,7 @@ public class PaymentMethod extends BaseEntity {
     private String lastFour;
 
     @Column(name = "is_default")
+    @Builder.Default
     private boolean isDefault = false;
 
     @Column(columnDefinition = "JSON")

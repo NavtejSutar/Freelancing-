@@ -1,5 +1,14 @@
 package com.freelancing.service.impl;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.UUID;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.freelancing.dto.response.PaymentResponse;
 import com.freelancing.entity.Contract;
 import com.freelancing.entity.Payment;
@@ -11,15 +20,8 @@ import com.freelancing.repository.ContractRepository;
 import com.freelancing.repository.PaymentRepository;
 import com.freelancing.repository.UserRepository;
 import com.freelancing.service.PaymentService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -61,7 +63,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .netAmount(netAmount)
                 .currency("USD")
                 .status(PaymentStatus.PENDING)
-                .paymentType(PaymentType.MILESTONE)
+                .paymentType(PaymentType.MILESTONE_RELEASE) 
                 .transactionId(UUID.randomUUID().toString())
                 .contract(contract)
                 .payer(payer)

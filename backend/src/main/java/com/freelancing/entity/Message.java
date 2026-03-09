@@ -21,6 +21,7 @@ public class Message extends BaseEntity {
     private String attachmentUrl;
 
     @Column(name = "is_read")
+    @Builder.Default
     private boolean isRead = false;
 
     @Column(name = "sent_at")

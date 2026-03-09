@@ -21,6 +21,7 @@ public class EscrowTransaction extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private EscrowStatus status = EscrowStatus.FUNDED;
 
     @Column(name = "funded_at")

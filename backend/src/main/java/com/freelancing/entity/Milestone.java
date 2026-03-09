@@ -32,6 +32,7 @@ public class Milestone extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private MilestoneStatus status = MilestoneStatus.PENDING;
 
     @Column(name = "sort_order")

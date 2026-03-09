@@ -23,6 +23,7 @@ public class Dispute extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private DisputeStatus status = DisputeStatus.OPEN;
 
     @Column(columnDefinition = "TEXT")

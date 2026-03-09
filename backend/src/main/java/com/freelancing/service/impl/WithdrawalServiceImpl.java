@@ -1,5 +1,12 @@
 package com.freelancing.service.impl;
 
+import java.time.LocalDateTime;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.freelancing.dto.request.WithdrawalRequest;
 import com.freelancing.dto.response.WithdrawalResponse;
 import com.freelancing.entity.PaymentMethod;
@@ -11,21 +18,21 @@ import com.freelancing.repository.PaymentMethodRepository;
 import com.freelancing.repository.UserRepository;
 import com.freelancing.repository.WithdrawalRepository;
 import com.freelancing.service.WithdrawalService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Service
-@RequiredArgsConstructor
 public class WithdrawalServiceImpl implements WithdrawalService {
 
     private final WithdrawalRepository withdrawalRepo;
     private final UserRepository userRepo;
     private final PaymentMethodRepository paymentMethodRepo;
+
+    public WithdrawalServiceImpl(
+        WithdrawalRepository withdrawalRepo,UserRepository userRepo, PaymentMethodRepository paymentMethodRepo
+    ){
+        this.withdrawalRepo=withdrawalRepo;
+        this.userRepo=userRepo;
+        this.paymentMethodRepo=paymentMethodRepo;
+    }
 
     @Override
     public Page<WithdrawalResponse> getWithdrawals(Long userId, Pageable pageable) {
@@ -67,7 +74,7 @@ public class WithdrawalServiceImpl implements WithdrawalService {
     public WithdrawalResponse approveWithdrawal(Long id) {
         Withdrawal withdrawal = withdrawalRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Withdrawal", "id", id));
-        withdrawal.setStatus(WithdrawalStatus.COMPLETED);
+        withdrawal.setStatus(WithdrawalStatus.APPROVED);
         withdrawal.setProcessedAt(LocalDateTime.now());
         withdrawal = withdrawalRepo.save(withdrawal);
         return mapToResponse(withdrawal);

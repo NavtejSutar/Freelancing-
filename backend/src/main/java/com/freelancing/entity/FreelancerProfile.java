@@ -30,18 +30,22 @@ public class FreelancerProfile extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "availability_status")
+    @Builder.Default
     private AvailabilityStatus availabilityStatus = AvailabilityStatus.AVAILABLE;
 
     private String city;
     private String country;
 
     @Column(name = "total_earnings", precision = 12, scale = 2)
+    @Builder.Default
     private BigDecimal totalEarnings = BigDecimal.ZERO;
 
     @Column(name = "avg_rating")
+    @Builder.Default
     private Double avgRating = 0.0;
 
     @Column(name = "total_reviews")
+    @Builder.Default
     private Integer totalReviews = 0;
 
     @OneToOne(fetch = FetchType.LAZY)

@@ -1,5 +1,12 @@
 package com.freelancing.service.impl;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.freelancing.dto.request.SubmissionRequest;
 import com.freelancing.dto.response.SubmissionResponse;
 import com.freelancing.entity.Milestone;
@@ -10,14 +17,8 @@ import com.freelancing.exception.ResourceNotFoundException;
 import com.freelancing.repository.MilestoneRepository;
 import com.freelancing.repository.SubmissionRepository;
 import com.freelancing.service.SubmissionService;
-import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +26,6 @@ public class SubmissionServiceImpl implements SubmissionService {
 
     private final SubmissionRepository submissionRepo;
     private final MilestoneRepository milestoneRepo;
-    private final ModelMapper modelMapper;
 
     @Override
     public SubmissionResponse getSubmissionById(Long id) {
@@ -89,8 +89,8 @@ public class SubmissionServiceImpl implements SubmissionService {
     public SubmissionResponse rejectSubmission(Long id) {
         Submission submission = submissionRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission", "id", id));
-        submission.setStatus(SubmissionStatus.REJECTED);
-        submission.setReviewedAt(LocalDateTime.now());
+        submission.setStatus(SubmissionStatus.REVISION_REQUESTED);
+        submission.setReviewedAt(LocalDateTime.now()); 
 
         Milestone milestone = submission.getMilestone();
         milestone.setStatus(MilestoneStatus.REVISION_REQUESTED);

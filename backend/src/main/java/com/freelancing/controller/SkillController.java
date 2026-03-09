@@ -61,7 +61,8 @@ public class SkillController {
         List<SkillCategory> response = skillService.getAllCategories();
         return ResponseEntity.ok(ApiResponse.success(response));
     }
-
+    // TODO: see about categories
+    /* 
     @PostMapping("/categories")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<SkillCategory>> createCategory(
@@ -71,9 +72,10 @@ public class SkillController {
     }
 
     @DeleteMapping("/categories/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')") 
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable Long id) {
         skillService.deleteCategory(id);
         return ResponseEntity.ok(ApiResponse.success("Category deleted", null));
     }
+        */
 }

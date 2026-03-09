@@ -22,12 +22,15 @@ public class ClientProfile extends BaseEntity {
     private String country;
 
     @Column(name = "total_spent", precision = 12, scale = 2)
+    @Builder.Default
     private BigDecimal totalSpent = BigDecimal.ZERO;
 
     @Column(name = "avg_rating")
+    @Builder.Default
     private Double avgRating = 0.0;
 
     @Column(name = "total_reviews")
+    @Builder.Default
     private Integer totalReviews = 0;
 
     @OneToOne(fetch = FetchType.LAZY)
