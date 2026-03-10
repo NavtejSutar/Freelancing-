@@ -14,11 +14,11 @@ import java.util.List;
 @AllArgsConstructor
 public class CustomUserDetails implements UserDetails {
 
-    private Long id;
-    private String email;
-    private String password;
+    private final Long id;
+    private final String email;
+    private final String password;
     private Collection<? extends GrantedAuthority> authorities;
-    private boolean isActive;
+    private final boolean isActive;
 
     public static CustomUserDetails build(User user) {
         List<GrantedAuthority> authorities = List.of(

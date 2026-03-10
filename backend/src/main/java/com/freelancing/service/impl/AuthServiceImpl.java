@@ -56,7 +56,7 @@ public class AuthServiceImpl implements AuthService {
                 .isActive(true)
                 .build();
 
-        user = userRepository.save(user);
+        user = userRepository.save(user); 
 
         CustomUserDetails userDetails = CustomUserDetails.build(user);
         String accessToken = jwtTokenProvider.generateAccessToken(userDetails);
