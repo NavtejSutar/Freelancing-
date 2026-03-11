@@ -5,6 +5,7 @@ export const freelancerService = {
   getById: (id) => api.get(`/freelancers/${id}`),
   getMe: () => api.get('/freelancers/me'),
   updateMe: (data) => api.put('/freelancers/me', data),
+  createMe: (data) => api.post('/freelancers/me', data),
   search: (keyword, page = 0, size = 10) => api.get(`/freelancers/search?keyword=${keyword}&page=${page}&size=${size}`),
   addSkill: (skillId) => api.post(`/freelancers/me/skills/${skillId}`),
   removeSkill: (skillId) => api.delete(`/freelancers/me/skills/${skillId}`),

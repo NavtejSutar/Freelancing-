@@ -13,6 +13,7 @@ import com.freelancing.entity.Milestone;
 import com.freelancing.entity.Submission;
 import com.freelancing.entity.enums.MilestoneStatus;
 import com.freelancing.entity.enums.SubmissionStatus;
+import com.freelancing.exception.BadRequestException;
 import com.freelancing.exception.ResourceNotFoundException;
 import com.freelancing.repository.MilestoneRepository;
 import com.freelancing.repository.SubmissionRepository;
@@ -40,6 +41,13 @@ public class SubmissionServiceImpl implements SubmissionService {
         Milestone milestone = milestoneRepo.findById(request.getMilestoneId())
                 .orElseThrow(() -> new ResourceNotFoundException("Milestone", "id", request.getMilestoneId()));
 
+        List<Submission> existing = submissionRepo.findByMilestoneId(request.getMilestoneId());
+        boolean hasActive = existing.stream().anyMatch(s ->
+                s.getStatus() == SubmissionStatus.SUBMITTED || s.getStatus() == SubmissionStatus.APPROVED);
+        if (hasActive) {
+            throw new BadRequestException("An active submission already exists for this milestone");
+        }
+            
         Submission submission = Submission.builder()
                 .description(request.getDescription())
                 .status(SubmissionStatus.SUBMITTED)

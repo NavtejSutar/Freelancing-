@@ -47,23 +47,41 @@ export default function Profile() {
   }, [user]);
 
   const handleSave = async () => {
-    setSaving(true);
-    try {
-      if (user?.role === 'FREELANCER') {
-        const { data } = await freelancerService.updateMe({ ...formData, hourlyRate: parseFloat(formData.hourlyRate) || 0 });
-        setProfile(data.data);
-      } else if (user?.role === 'CLIENT') {
-        const { data } = await clientService.updateMe(formData);
-        setProfile(data.data);
+  setSaving(true);
+  try {
+    if (user?.role === 'FREELANCER') {
+      let data;
+      if (!profile) {
+        // Profile doesn't exist yet — create it
+        ({ data } = await freelancerService.createMe({
+          ...formData,
+          hourlyRate: parseFloat(formData.hourlyRate) || 0
+        }));
+      } else {
+        // Profile exists — update it
+        ({ data } = await freelancerService.updateMe({
+          ...formData,
+          hourlyRate: parseFloat(formData.hourlyRate) || 0
+        }));
       }
-      toast.success('Profile updated!');
-      setEditing(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update');
-    } finally {
-      setSaving(false);
+      setProfile(data.data);
+    } else if (user?.role === 'CLIENT') {
+      let data;
+      if (!profile) {
+        ({ data } = await clientService.createMe(formData));
+      } else {
+        ({ data } = await clientService.updateMe(formData));
+      }
+      setProfile(data.data);
     }
-  };
+    toast.success('Profile saved!');
+    setEditing(false);
+  } catch (err) {
+    toast.error(err.response?.data?.message || 'Failed to save');
+  } finally {
+    setSaving(false);
+  }
+};
 
   if (loading) return <LoadingSpinner />;
 

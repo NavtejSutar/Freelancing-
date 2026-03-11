@@ -21,6 +21,15 @@ public class FreelancerController {
 
     private final FreelancerService freelancerService;
 
+    @PostMapping("/me")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<ApiResponse<FreelancerProfileResponse>> createMyProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody FreelancerProfileRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Profile created",
+                freelancerService.createProfile(userDetails.getId(), request)));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<Page<FreelancerProfileResponse>>> getAllFreelancers(Pageable pageable) {
         Page<FreelancerProfileResponse> response = freelancerService.getAllFreelancers(pageable);

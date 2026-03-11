@@ -33,16 +33,19 @@ public class FreelancerServiceImpl implements FreelancerService {
     private final ModelMapper modelMapper;
 
     @Override
+    @Transactional(readOnly=true)
     public Page<FreelancerProfileResponse> getAllFreelancers(Pageable pageable) {
         return freelancerRepo.findAll(pageable).map(this::mapToResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public FreelancerProfileResponse getFreelancerById(Long id) {
         return mapToResponse(findById(id));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public FreelancerProfileResponse getFreelancerByUserId(Long userId) {
         FreelancerProfile profile = freelancerRepo.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "userId", userId));
@@ -102,6 +105,7 @@ public class FreelancerServiceImpl implements FreelancerService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<FreelancerProfileResponse> searchFreelancers(String keyword, Pageable pageable) {
         return freelancerRepo.searchFreelancers(keyword, pageable).map(this::mapToResponse);
     }
@@ -125,6 +129,7 @@ public class FreelancerServiceImpl implements FreelancerService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Set<SkillResponse> getSkills(Long freelancerId) {
         FreelancerProfile profile = findById(freelancerId);
         return profile.getSkills().stream()

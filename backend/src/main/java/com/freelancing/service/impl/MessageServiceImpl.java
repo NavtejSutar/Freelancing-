@@ -39,11 +39,13 @@ public class MessageServiceImpl implements MessageService {
     private final ModelMapper modelMapper;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<MessageThreadResponse> getThreads(Long userId, Pageable pageable) {
         return threadRepo.findByParticipantId(userId, pageable).map(this::mapThreadToResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public MessageThreadResponse getThreadById(Long threadId) {
         MessageThread thread = threadRepo.findById(threadId)
                 .orElseThrow(() -> new ResourceNotFoundException("MessageThread", "id", threadId));
@@ -120,6 +122,7 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<MessageThreadResponse> getThreadsByContract(Long contractId) {
         return threadRepo.findByContractId(contractId).stream()
                 .map(this::mapThreadToResponse)

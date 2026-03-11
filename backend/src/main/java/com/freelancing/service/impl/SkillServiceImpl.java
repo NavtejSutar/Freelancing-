@@ -88,7 +88,7 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     @Transactional
-    public void deleteSkill(Long id) {
+    public void deleteSkill(Long id) { 
         Skill skill = skillRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Skill", "id", id));
         skillRepo.delete(skill);
@@ -101,7 +101,7 @@ public class SkillServiceImpl implements SkillService {
         return categoryRepo.findAll();
     }
 
-
+    @Override
     @Transactional
     public SkillCategory createCategory(String name, String description) {
         if (categoryRepo.existsByName(name)) {
@@ -117,6 +117,7 @@ public class SkillServiceImpl implements SkillService {
 
 
     @Transactional
+    @Override
     public void deleteCategory(Long id) {
         SkillCategory category = categoryRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("SkillCategory", "id", id));

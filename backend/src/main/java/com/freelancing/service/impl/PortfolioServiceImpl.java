@@ -34,9 +34,9 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Override
     @Transactional
     public PortfolioItemResponse addPortfolioItem(Long freelancerId, PortfolioItemRequest request) {
-        FreelancerProfile profile = freelancerRepo.findById(freelancerId)
+        FreelancerProfile profile = freelancerRepo.findByUserId(freelancerId)
                 .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "id", freelancerId));
-
+ 
         PortfolioItem item = PortfolioItem.builder()
                 .title(request.getTitle())
                 .description(request.getDescription())

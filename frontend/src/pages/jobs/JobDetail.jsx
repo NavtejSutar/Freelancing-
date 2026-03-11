@@ -36,7 +36,7 @@ export default function JobDetail() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await proposalService.create({ ...proposalData, jobPostId: parseInt(id), bidAmount: parseFloat(proposalData.bidAmount) });
+      await proposalService.create({ ...proposalData, jobPostId: parseInt(id), proposedRate: parseFloat(proposalData.bidAmount) });
       toast.success('Proposal submitted!');
       setShowProposalForm(false);
       setProposalData({ coverLetter: '', bidAmount: '', estimatedDuration: '' });

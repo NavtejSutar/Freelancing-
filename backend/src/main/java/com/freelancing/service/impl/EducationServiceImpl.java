@@ -34,7 +34,7 @@ public class EducationServiceImpl implements EducationService {
     @Override
     @Transactional
     public EducationResponse addEducation(Long freelancerId, EducationRequest request) {
-        FreelancerProfile profile = freelancerRepo.findById(freelancerId)
+        FreelancerProfile profile = freelancerRepo.findByUserId(freelancerId)
                 .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "id", freelancerId));
 
         Education education = Education.builder()

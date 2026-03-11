@@ -34,11 +34,13 @@ public class ContractServiceImpl implements ContractService {
     private final ModelMapper modelMapper;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ContractResponse> getAllContracts(Long userId, Pageable pageable) {
-        return contractRepo.findByFreelancerIdOrClientId(userId, pageable).map(this::mapToResponse);
+        return contractRepo.findByFreelancerUserIdOrClientUserId(userId, pageable).map(this::mapToResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ContractResponse getContractById(Long id) {
         Contract contract = contractRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Contract", "id", id));
@@ -95,11 +97,13 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ContractResponse> getContractsByClient(Long clientId, Pageable pageable) {
         return contractRepo.findByClientId(clientId, pageable).map(this::mapToResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ContractResponse> getContractsByFreelancer(Long freelancerId, Pageable pageable) {
         return contractRepo.findByFreelancerId(freelancerId, pageable).map(this::mapToResponse);
     }

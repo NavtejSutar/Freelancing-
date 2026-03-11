@@ -23,6 +23,15 @@ public class ClientController {
 
     private final ClientService clientService;
 
+    @PostMapping("/me")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ApiResponse<ClientProfileResponse>> createMyProfile(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody ClientProfileRequest request) {
+        return ResponseEntity.ok(ApiResponse.success("Profile created",
+                clientService.createProfile(userDetails.getId(), request)));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<Page<ClientProfileResponse>>> getAllClients(Pageable pageable) {
         Page<ClientProfileResponse> response = clientService.getAllClients(pageable);

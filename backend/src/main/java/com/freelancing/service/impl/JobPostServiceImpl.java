@@ -33,11 +33,13 @@ public class JobPostServiceImpl implements JobPostService {
     private final SkillRepository skillRepo;
 
     @Override
+    @Transactional(readOnly = true)
     public Page<JobPostResponse> getAllJobs(Pageable pageable) {
         return jobPostRepo.findAll(pageable).map(this::mapToResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public JobPostResponse getJobById(Long id) {
         JobPost job = jobPostRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("JobPost", "id", id));
@@ -46,9 +48,9 @@ public class JobPostServiceImpl implements JobPostService {
 
     @Override
     @Transactional
-    public JobPostResponse createJob(Long clientProfileId, JobPostRequest request) {
-        ClientProfile client = clientRepo.findById(clientProfileId)
-                .orElseThrow(() -> new ResourceNotFoundException("ClientProfile", "id", clientProfileId));
+    public JobPostResponse createJob(Long userId, JobPostRequest request) {
+        ClientProfile client = clientRepo.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("ClientProfile", "id", userId));
 
         JobPost job = JobPost.builder()
                 .title(request.getTitle())
@@ -105,11 +107,13 @@ public class JobPostServiceImpl implements JobPostService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<JobPostResponse> searchJobs(String keyword, JobStatus status, BigDecimal minBudget, BigDecimal maxBudget, Pageable pageable) {
         return jobPostRepo.searchJobs(keyword, status, minBudget, maxBudget, pageable).map(this::mapToResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<JobPostResponse> getJobsByClient(Long clientId, Pageable pageable) {
         return jobPostRepo.findByClientId(clientId, pageable).map(this::mapToResponse);
     }

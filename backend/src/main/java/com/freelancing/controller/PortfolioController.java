@@ -28,7 +28,7 @@ public class PortfolioController {
     }
 
     @PostMapping("/me/portfolio")
-    @PreAuthorize("hasRole('FREELANCER')")
+    @PreAuthorize("hasRole('FREELANCER')") 
     public ResponseEntity<ApiResponse<PortfolioItemResponse>> addPortfolioItem(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody PortfolioItemRequest request) {

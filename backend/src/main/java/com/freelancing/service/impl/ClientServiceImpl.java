@@ -1,5 +1,11 @@
 package com.freelancing.service.impl;
 
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.freelancing.dto.request.ClientProfileRequest;
 import com.freelancing.dto.request.CompanyRequest;
 import com.freelancing.dto.response.ClientProfileResponse;
@@ -13,12 +19,8 @@ import com.freelancing.repository.ClientProfileRepository;
 import com.freelancing.repository.CompanyRepository;
 import com.freelancing.repository.UserRepository;
 import com.freelancing.service.ClientService;
+
 import lombok.RequiredArgsConstructor;
-import org.modelmapper.ModelMapper;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,22 +31,29 @@ public class ClientServiceImpl implements ClientService {
     private final UserRepository userRepository;
     private final ModelMapper modelMapper;
 
-    @Override
+    @Override @Transactional(readOnly = true)
     public Page<ClientProfileResponse> getAllClients(Pageable pageable) {
-        return clientRepo.findAll(pageable).map(p -> modelMapper.map(p, ClientProfileResponse.class));
+        return clientRepo.findAll(pageable).map(this::mapToResponse);
     }
 
-    @Override
+    @Override @Transactional(readOnly = true)
     public ClientProfileResponse getClientById(Long id) {
-        ClientProfile profile = findById(id);
-        return modelMapper.map(profile, ClientProfileResponse.class);
+        return mapToResponse(findById(id));
     }
 
-    @Override
+    @Override @Transactional(readOnly = true)
     public ClientProfileResponse getClientByUserId(Long userId) {
         ClientProfile profile = clientRepo.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("ClientProfile", "userId", userId));
-        return modelMapper.map(profile, ClientProfileResponse.class);
+        return mapToResponse(profile);
+    }
+
+    private ClientProfileResponse mapToResponse(ClientProfile profile) {
+        ClientProfileResponse response = modelMapper.map(profile, ClientProfileResponse.class);
+        if (profile.getCompany() != null) {
+            response.setCompany(modelMapper.map(profile.getCompany(), CompanyResponse.class));
+        }
+        return response;
     }
 
     @Override

@@ -36,13 +36,13 @@ public class ProposalServiceImpl implements ProposalService {
     @Override
     @Transactional
     public ProposalResponse submitProposal(Long freelancerProfileId, ProposalRequest request) {
-        FreelancerProfile freelancer = freelancerRepo.findById(freelancerProfileId)
+        FreelancerProfile freelancer = freelancerRepo.findByUserId(freelancerProfileId)
                 .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "id", freelancerProfileId));
 
         JobPost jobPost = jobPostRepo.findById(request.getJobPostId())
                 .orElseThrow(() -> new ResourceNotFoundException("JobPost", "id", request.getJobPostId()));
 
-        if (proposalRepo.existsByFreelancerIdAndJobPostId(freelancerProfileId, request.getJobPostId())) {
+        if (proposalRepo.existsByFreelancerIdAndJobPostId(freelancer.getId(), request.getJobPostId())) {
             throw new BadRequestException("You have already submitted a proposal for this job");
         }
 

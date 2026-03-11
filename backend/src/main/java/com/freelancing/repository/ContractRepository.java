@@ -14,6 +14,9 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     Page<Contract> findByClientId(Long clientId, Pageable pageable);
     Page<Contract> findByStatus(ContractStatus status, Pageable pageable);
 
+    @Query("SELECT c FROM Contract c WHERE c.freelancer.user.id = :userId OR c.client.user.id = :userId")
+    Page<Contract> findByFreelancerUserIdOrClientUserId(Long userId, Pageable pageable);
+
     @Query("SELECT c FROM Contract c WHERE c.freelancer.id = :userId OR c.client.id = :userId")
     Page<Contract> findByFreelancerIdOrClientId(Long userId, Pageable pageable);
 }
