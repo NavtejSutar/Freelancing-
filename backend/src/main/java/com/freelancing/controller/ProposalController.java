@@ -27,7 +27,7 @@ public class ProposalController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @PostMapping
+    @PostMapping 
     @PreAuthorize("hasRole('FREELANCER')")
     public ResponseEntity<ApiResponse<ProposalResponse>> submitProposal(
             @AuthenticationPrincipal CustomUserDetails userDetails,

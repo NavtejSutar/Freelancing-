@@ -11,6 +11,10 @@ spring:
   application:
     name: freelancing-platform
 
+  devtools:
+    restart:
+      enabled: false
+
   # DATABASE (MySQL)
   datasource:
     url: jdbc:mysql://localhost:3306/nexusFreelancing
@@ -64,7 +68,7 @@ spring:
 app:
   jwt:
     secret: FreelancingPlatformSuperSecretKeyThatIsAtLeast256BitsLongForHS256Algorithm2026
-    access-token-expiration: 900000
+    access-token-expiration: 86400000
     refresh-token-expiration: 604800000
 
   # FILE STORAGE

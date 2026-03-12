@@ -79,6 +79,7 @@ public class JobPostController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    //TODO: check skills
     @PostMapping("/{jobId}/skills/{skillId}")
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<ApiResponse<Void>> addSkillToJob(@PathVariable Long jobId, @PathVariable Long skillId) {
