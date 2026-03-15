@@ -61,21 +61,22 @@ public class SkillController {
         List<SkillCategory> response = skillService.getAllCategories();
         return ResponseEntity.ok(ApiResponse.success(response));
     }
-    // TODO: see about categories
-    /* 
+
+    // FIX: was commented out — uncommented so admin can create categories from frontend
     @PostMapping("/categories")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<SkillCategory>> createCategory(
-            @RequestParam String name, @RequestParam(required = false) String description) {
+            @RequestParam String name,
+            @RequestParam(required = false) String description) {
         SkillCategory response = skillService.createCategory(name, description);
         return ResponseEntity.ok(ApiResponse.success("Category created", response));
     }
 
+    // FIX: was commented out — uncommented so admin can delete categories from frontend
     @DeleteMapping("/categories/{id}")
-    @PreAuthorize("hasRole('ADMIN')") 
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable Long id) {
         skillService.deleteCategory(id);
         return ResponseEntity.ok(ApiResponse.success("Category deleted", null));
     }
-        */
 }

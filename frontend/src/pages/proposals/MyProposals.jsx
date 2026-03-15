@@ -40,10 +40,11 @@ export default function MyProposals() {
               <Link key={p.id} to={`/proposals/${p.id}`} className="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-semibold text-gray-900">{p.jobTitle || `Job #${p.jobPostId}`}</p>
+                    <p className="font-semibold text-gray-900">{p.jobPostTitle || `Job #${p.jobPostId}`}</p>
                     <p className="text-sm text-gray-600 mt-1 line-clamp-2">{p.coverLetter}</p>
                     <div className="flex gap-4 mt-2 text-sm text-gray-500">
-                      <span>Bid: ${p.bidAmount}</span>
+                      {/* FIX: was p.bidAmount — backend field is proposedRate */}
+                      <span>Bid: ₹{p.proposedRate}</span>
                       {p.estimatedDuration && <span>Duration: {p.estimatedDuration}</span>}
                     </div>
                   </div>

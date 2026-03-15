@@ -14,5 +14,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
     boolean existsByEmail(String email);
     Page<User> findByRole(UserRole role, Pageable pageable);
-    Page<User> findByIsActive(boolean isActive, Pageable pageable);
+    Page<User> findByActive(boolean active, Pageable pageable); // FIX: was findByIsActive — field renamed to active in User entity
 }

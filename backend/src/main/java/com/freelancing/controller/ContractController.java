@@ -39,7 +39,20 @@ public class ContractController {
     @PostMapping("/proposal/{proposalId}")
     public ResponseEntity<ApiResponse<ContractResponse>> createContract(@PathVariable Long proposalId) {
         ContractResponse response = contractService.createContract(proposalId);
-        return ResponseEntity.ok(ApiResponse.success("Contract created", response));
+        return ResponseEntity.ok(ApiResponse.success("Contract created — both parties must sign", response));
+    }
+
+    // UPDATED: now accepts signatureUrl as a request param — both parties must provide signature to accept
+    @PutMapping("/{id}/accept")
+    public ResponseEntity<ApiResponse<ContractResponse>> acceptContract(
+            @PathVariable Long id,
+            @RequestParam String signatureUrl,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        ContractResponse response = contractService.acceptContract(id, userDetails.getId(), signatureUrl);
+        String message = response.getStatus().name().equals("ACTIVE")
+                ? "Contract is now active — both parties have signed!"
+                : "Contract signed — waiting for the other party to sign";
+        return ResponseEntity.ok(ApiResponse.success(message, response));
     }
 
     @PutMapping("/{id}/complete")
@@ -67,8 +80,6 @@ public class ContractController {
         Page<ContractResponse> response = contractService.getContractsByFreelancer(freelancerId, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
-
-    // --- Milestone endpoints ---
 
     @GetMapping("/{contractId}/milestones")
     public ResponseEntity<ApiResponse<List<MilestoneResponse>>> getMilestones(@PathVariable Long contractId) {

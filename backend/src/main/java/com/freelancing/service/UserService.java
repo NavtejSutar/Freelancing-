@@ -9,6 +9,7 @@ public interface UserService {
     UserResponse getCurrentUser(Long userId);
     UserResponse updateCurrentUser(Long userId, UpdateUserRequest request);
     void deactivateAccount(Long userId);
+    void verifyUser(Long id);
     Page<UserResponse> getAllUsers(Pageable pageable);
     UserResponse getUserById(Long id);
     void banUser(Long id);

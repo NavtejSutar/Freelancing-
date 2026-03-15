@@ -36,6 +36,15 @@ public class JobPostController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    // ADDED: client fetches only their own jobs using their userId — no need to pre-fetch clientId
+    @GetMapping("/my")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ApiResponse<Page<JobPostResponse>>> getMyJobs(
+            @AuthenticationPrincipal CustomUserDetails userDetails, Pageable pageable) {
+        Page<JobPostResponse> response = jobPostService.getJobsByUserId(userDetails.getId(), pageable);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<ApiResponse<JobPostResponse>> createJob(
@@ -79,7 +88,6 @@ public class JobPostController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    //TODO: check skills
     @PostMapping("/{jobId}/skills/{skillId}")
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<ApiResponse<Void>> addSkillToJob(@PathVariable Long jobId, @PathVariable Long skillId) {

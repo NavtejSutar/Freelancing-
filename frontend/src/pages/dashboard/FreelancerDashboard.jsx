@@ -32,9 +32,28 @@ export default function FreelancerDashboard() {
   const activeContracts = contracts.filter(c => c.status === 'ACTIVE').length;
   const pendingProposals = proposals.filter(p => p.status === 'PENDING').length;
 
+  // Also show contracts pending freelancer acceptance
+  const pendingContracts = contracts.filter(c => c.status === 'PENDING_ACCEPTANCE' && !c.freelancerAccepted);
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.firstName}!</h1>
+
+      {/* Alert for contracts awaiting freelancer acceptance */}
+      {pendingContracts.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p className="text-sm font-medium text-yellow-800">
+            ⚠️ You have {pendingContracts.length} contract{pendingContracts.length > 1 ? 's' : ''} waiting for your acceptance.
+          </p>
+          <div className="mt-2 flex gap-2 flex-wrap">
+            {pendingContracts.map(c => (
+              <Link key={c.id} to={`/contracts/${c.id}`} className="text-sm text-indigo-600 underline hover:text-indigo-800">
+                {c.title}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
@@ -72,7 +91,7 @@ export default function FreelancerDashboard() {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-medium text-gray-900">{job.title}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">${job.budgetMin} - ${job.budgetMax}</p>
+                      <p className="text-sm text-gray-500 mt-0.5">₹{job.budgetMin} - ₹{job.budgetMax}</p>
                     </div>
                     <StatusBadge status={job.status} />
                   </div>
@@ -95,8 +114,9 @@ export default function FreelancerDashboard() {
                 <Link key={p.id} to={`/proposals/${p.id}`} className="block p-3 rounded-lg hover:bg-gray-50 border border-gray-100">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium text-gray-900">{p.coverLetter?.substring(0, 60)}...</p>
-                      <p className="text-sm text-gray-500 mt-0.5">${p.bidAmount}</p>
+                      <p className="font-medium text-gray-900">{p.jobPostTitle || `Job #${p.jobPostId}`}</p>
+                      {/* FIX: was p.bidAmount — backend field is proposedRate */}
+                      <p className="text-sm text-gray-500 mt-0.5">₹{p.proposedRate}</p>
                     </div>
                     <StatusBadge status={p.status} />
                   </div>

@@ -1,13 +1,13 @@
 package com.freelancing.security;
 
 import io.jsonwebtoken.*;
-import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -78,7 +78,12 @@ public class JwtTokenProvider {
     }
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
+        // FIX: original code used Decoders.BASE64.decode(jwtSecret) but the secret in
+        // application.yml is a plain string, not Base64. Base64 decoding a non-Base64
+        // string produces a garbage key, causing ALL token validation to silently fail —
+        // the SecurityContext never gets populated and every request returns 403.
+        // Fix: derive the key from raw UTF-8 bytes so any string secret works correctly.
+        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }

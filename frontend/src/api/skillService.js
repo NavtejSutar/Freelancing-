@@ -7,6 +7,8 @@ export const skillService = {
   update: (id, data) => api.put(`/skills/${id}`, data),
   delete: (id) => api.delete(`/skills/${id}`),
   getCategories: () => api.get('/skills/categories'),
-  createCategory: (data) => api.post('/skills/categories', data),
+  // FIX: backend uses @RequestParam (not @RequestBody) for createCategory, so send as params
+  createCategory: ({ name, description }) =>
+    api.post('/skills/categories', null, { params: { name, description } }),
   deleteCategory: (id) => api.delete(`/skills/categories/${id}`),
 };

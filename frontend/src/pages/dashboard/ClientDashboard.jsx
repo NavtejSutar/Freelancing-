@@ -96,7 +96,7 @@ export default function ClientDashboard() {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-medium text-gray-900">Contract #{c.id}</p>
-                      <p className="text-sm text-gray-500 mt-0.5">${c.totalAmount}</p>
+                      <p className="text-sm text-gray-500 mt-0.5">₹{c.totalAmount}</p>
                     </div>
                     <StatusBadge status={c.status} />
                   </div>

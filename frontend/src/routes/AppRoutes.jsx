@@ -38,6 +38,7 @@ import AdminReports from '../pages/admin/AdminReports';
 import AdminDisputes from '../pages/admin/AdminDisputes';
 import AdminWithdrawals from '../pages/admin/AdminWithdrawals';
 import AdminPayments from '../pages/admin/AdminPayments';
+import AdminSkills from '../pages/admin/Adminskills'; // ADDED
 
 // Other
 import Notifications from '../pages/notifications/Notifications';
@@ -84,6 +85,7 @@ export default function AppRoutes() {
 
         {/* Admin */}
         <Route path="/admin/users" element={<ProtectedRoute roles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
+        <Route path="/admin/skills" element={<ProtectedRoute roles={['ADMIN']}><AdminSkills /></ProtectedRoute>} />
         <Route path="/admin/reports" element={<ProtectedRoute roles={['ADMIN']}><AdminReports /></ProtectedRoute>} />
         <Route path="/admin/disputes" element={<ProtectedRoute roles={['ADMIN']}><AdminDisputes /></ProtectedRoute>} />
         <Route path="/admin/withdrawals" element={<ProtectedRoute roles={['ADMIN']}><AdminWithdrawals /></ProtectedRoute>} />

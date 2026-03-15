@@ -12,6 +12,7 @@ public interface ContractService {
     Page<ContractResponse> getAllContracts(Long userId, Pageable pageable);
     ContractResponse getContractById(Long id);
     ContractResponse createContract(Long proposalId);
+    ContractResponse acceptContract(Long contractId, Long userId, String signatureUrl); // UPDATED: added signatureUrl
     ContractResponse completeContract(Long id);
     ContractResponse cancelContract(Long id);
     Page<ContractResponse> getContractsByClient(Long clientId, Pageable pageable);

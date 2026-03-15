@@ -36,6 +36,9 @@ public class Proposal extends BaseEntity {
     @Column(name = "estimated_duration")
     private String estimatedDuration;
 
+    @Column(name = "cover_letter_pdf_url")
+    private String coverLetterPdfUrl; // ADDED: optional PDF version of cover letter
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default

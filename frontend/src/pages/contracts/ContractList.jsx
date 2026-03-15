@@ -41,7 +41,7 @@ export default function ContractList() {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">Contract #{c.id}</h3>
                     <div className="flex gap-4 mt-2 text-sm text-gray-500">
-                      <span>Total: ${c.totalAmount}</span>
+                      <span>Total: ₹{c.totalAmount}</span>
                       <span>Milestones: {c.milestones?.length || 0}</span>
                       <span>{new Date(c.createdAt).toLocaleDateString()}</span>
                     </div>

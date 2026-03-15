@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { jobService } from '../../api/jobService';
+import { fileService } from '../../api/fileService';
 import { proposalService } from '../../api/proposalService';
 import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -18,6 +19,8 @@ export default function JobDetail() {
   const [showProposalForm, setShowProposalForm] = useState(false);
   const [proposalData, setProposalData] = useState({ coverLetter: '', bidAmount: '', estimatedDuration: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfUploading, setPdfUploading] = useState(false);
 
   useEffect(() => {
     jobService.getById(id)
@@ -36,14 +39,28 @@ export default function JobDetail() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await proposalService.create({ ...proposalData, jobPostId: parseInt(id), proposedRate: parseFloat(proposalData.bidAmount) });
+      let coverLetterPdfUrl = null;
+      if (pdfFile) {
+        setPdfUploading(true);
+        const { data: uploadData } = await fileService.uploadPdf(pdfFile);
+        coverLetterPdfUrl = uploadData.data?.url;
+        setPdfUploading(false);
+      }
+      await proposalService.create({
+        ...proposalData,
+        jobPostId: parseInt(id),
+        proposedRate: parseFloat(proposalData.bidAmount),
+        coverLetterPdfUrl,
+      });
       toast.success('Proposal submitted!');
       setShowProposalForm(false);
       setProposalData({ coverLetter: '', bidAmount: '', estimatedDuration: '' });
+      setPdfFile(null);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit proposal');
     } finally {
       setSubmitting(false);
+      setPdfUploading(false);
     }
   };
 
@@ -74,9 +91,9 @@ export default function JobDetail() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
           {[
-            { icon: HiCurrencyDollar, label: 'Budget', value: `$${job.budgetMin} - $${job.budgetMax}` },
+            { icon: HiCurrencyDollar, label: 'Budget', value: `₹${job.budgetMin} - ₹${job.budgetMax}` },
             { icon: HiBriefcase, label: 'Type', value: job.budgetType === 'FIXED' ? 'Fixed Price' : 'Hourly' },
-            { icon: HiClock, label: 'Duration', value: job.expectedDuration || 'Not specified' },
+            { icon: HiClock, label: 'Duration', value: job.duration || 'Not specified' },
             { icon: HiUserGroup, label: 'Experience', value: job.experienceLevel?.replace(/_/g, ' ') || 'Any' },
           ].map((item) => (
             <div key={item.label} className="text-center p-3 bg-gray-50 rounded-lg">
@@ -143,7 +160,7 @@ export default function JobDetail() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bid Amount ($)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Bid Amount (₹)</label>
               <input
                 type="number"
                 value={proposalData.bidAmount}
@@ -163,8 +180,20 @@ export default function JobDetail() {
               />
             </div>
           </div>
-          <button type="submit" disabled={submitting} className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
-            {submitting ? 'Submitting...' : 'Submit Proposal'}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Cover Letter PDF <span className="text-gray-400 font-normal">(optional — upload a PDF version)</span>
+            </label>
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setPdfFile(e.target.files[0])}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+            />
+            {pdfFile && <p className="text-xs text-green-600 mt-1">✓ {pdfFile.name}</p>}
+          </div>
+          <button type="submit" disabled={submitting || pdfUploading} className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+            {pdfUploading ? 'Uploading PDF...' : submitting ? 'Submitting...' : 'Submit Proposal'}
           </button>
         </form>
       )}
@@ -179,7 +208,7 @@ export default function JobDetail() {
                   <div>
                     <p className="font-medium text-gray-900">{p.freelancerName || 'Freelancer'}</p>
                     <p className="text-sm text-gray-600 mt-1 line-clamp-2">{p.coverLetter}</p>
-                    <p className="text-sm font-medium text-indigo-600 mt-1">${p.bidAmount}</p>
+                    <p className="text-sm font-medium text-indigo-600 mt-1">₹${p.proposedRate}</p>
                   </div>
                   <StatusBadge status={p.status} />
                 </div>

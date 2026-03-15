@@ -27,8 +27,9 @@ public class ProposalServiceImpl implements ProposalService {
     private final FreelancerProfileRepository freelancerRepo;
 
     @Override
+    @Transactional(readOnly = true)
     public ProposalResponse getProposalById(Long id) {
-        Proposal proposal = proposalRepo.findById(id)
+        Proposal proposal = proposalRepo.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Proposal", "id", id));
         return mapToResponse(proposal);
     }
@@ -50,6 +51,7 @@ public class ProposalServiceImpl implements ProposalService {
                 .coverLetter(request.getCoverLetter())
                 .proposedRate(request.getProposedRate())
                 .estimatedDuration(request.getEstimatedDuration())
+                .coverLetterPdfUrl(request.getCoverLetterPdfUrl())
                 .status(ProposalStatus.PENDING)
                 .freelancer(freelancer)
                 .jobPost(jobPost)
@@ -62,7 +64,7 @@ public class ProposalServiceImpl implements ProposalService {
     @Override
     @Transactional
     public ProposalResponse updateProposal(Long id, ProposalRequest request) {
-        Proposal proposal = proposalRepo.findById(id)
+        Proposal proposal = proposalRepo.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Proposal", "id", id));
 
         if (proposal.getStatus() != ProposalStatus.PENDING) {
@@ -89,7 +91,7 @@ public class ProposalServiceImpl implements ProposalService {
     @Override
     @Transactional
     public ProposalResponse acceptProposal(Long id) {
-        Proposal proposal = proposalRepo.findById(id)
+        Proposal proposal = proposalRepo.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Proposal", "id", id));
         proposal.setStatus(ProposalStatus.ACCEPTED);
         proposal = proposalRepo.save(proposal);
@@ -99,7 +101,7 @@ public class ProposalServiceImpl implements ProposalService {
     @Override
     @Transactional
     public ProposalResponse rejectProposal(Long id) {
-        Proposal proposal = proposalRepo.findById(id)
+        Proposal proposal = proposalRepo.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Proposal", "id", id));
         proposal.setStatus(ProposalStatus.REJECTED);
         proposal = proposalRepo.save(proposal);
@@ -107,13 +109,22 @@ public class ProposalServiceImpl implements ProposalService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ProposalResponse> getProposalsByJob(Long jobPostId, Pageable pageable) {
         return proposalRepo.findByJobPostId(jobPostId, pageable).map(this::mapToResponse);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ProposalResponse> getProposalsByFreelancer(Long freelancerId, Pageable pageable) {
         return proposalRepo.findByFreelancerId(freelancerId, pageable).map(this::mapToResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProposalResponse> getProposalsByUserId(Long userId, Pageable pageable) {
+        // FIX: /my endpoint passes userId from JWT — use query that filters by freelancer.user.id
+        return proposalRepo.findByFreelancerUserId(userId, pageable).map(this::mapToResponse);
     }
 
     private ProposalResponse mapToResponse(Proposal proposal) {
@@ -127,6 +138,7 @@ public class ProposalServiceImpl implements ProposalService {
                 .freelancerName(proposal.getFreelancer().getUser().getFirstName() + " " + proposal.getFreelancer().getUser().getLastName())
                 .jobPostId(proposal.getJobPost().getId())
                 .jobPostTitle(proposal.getJobPost().getTitle())
+                .coverLetterPdfUrl(proposal.getCoverLetterPdfUrl())
                 .createdAt(proposal.getCreatedAt())
                 .build();
     }

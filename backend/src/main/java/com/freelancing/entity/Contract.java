@@ -34,9 +34,30 @@ public class Contract extends BaseEntity {
     private LocalDateTime endDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     @Builder.Default
-    private ContractStatus status = ContractStatus.ACTIVE;
+    private ContractStatus status = ContractStatus.PENDING_ACCEPTANCE;
+
+    @Column(name = "client_accepted")
+    @Builder.Default
+    private boolean clientAccepted = false;
+
+    @Column(name = "freelancer_accepted")
+    @Builder.Default
+    private boolean freelancerAccepted = false;
+
+    // ADDED: signature image URLs — stored after each party signs
+    @Column(name = "client_signature_url")
+    private String clientSignatureUrl;
+
+    @Column(name = "freelancer_signature_url")
+    private String freelancerSignatureUrl;
+
+    @Column(name = "client_signed_at")
+    private LocalDateTime clientSignedAt;
+
+    @Column(name = "freelancer_signed_at")
+    private LocalDateTime freelancerSignedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "freelancer_id", nullable = false)

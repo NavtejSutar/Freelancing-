@@ -18,4 +18,6 @@ public class ProposalRequest {
     private BigDecimal proposedRate;
 
     private String estimatedDuration;
+
+    private String coverLetterPdfUrl; // ADDED: optional PDF upload URL
 }

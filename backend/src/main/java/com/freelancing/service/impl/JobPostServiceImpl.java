@@ -50,7 +50,7 @@ public class JobPostServiceImpl implements JobPostService {
     @Transactional
     public JobPostResponse createJob(Long userId, JobPostRequest request) {
         ClientProfile client = clientRepo.findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("ClientProfile", "id", userId));
+                .orElseThrow(() -> new ResourceNotFoundException("ClientProfile", "userId", userId));
 
         JobPost job = JobPost.builder()
                 .title(request.getTitle())
@@ -116,6 +116,15 @@ public class JobPostServiceImpl implements JobPostService {
     @Transactional(readOnly = true)
     public Page<JobPostResponse> getJobsByClient(Long clientId, Pageable pageable) {
         return jobPostRepo.findByClientId(clientId, pageable).map(this::mapToResponse);
+    }
+
+    // ADDED: look up the ClientProfile by userId, then filter jobs by that profile's id
+    @Override
+    @Transactional(readOnly = true)
+    public Page<JobPostResponse> getJobsByUserId(Long userId, Pageable pageable) {
+        ClientProfile client = clientRepo.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("ClientProfile", "userId", userId));
+        return jobPostRepo.findByClientId(client.getId(), pageable).map(this::mapToResponse);
     }
 
     @Override

@@ -61,15 +61,58 @@ public class ContractServiceImpl implements ContractService {
                 .title(proposal.getJobPost().getTitle())
                 .description(proposal.getJobPost().getDescription())
                 .totalAmount(proposal.getProposedRate())
-                .startDate(LocalDateTime.now())
-                .status(ContractStatus.ACTIVE)
+                .status(ContractStatus.PENDING_ACCEPTANCE)
+                .clientAccepted(false)
+                .freelancerAccepted(false)
                 .freelancer(proposal.getFreelancer())
                 .client(proposal.getJobPost().getClient())
                 .jobPost(proposal.getJobPost())
                 .proposal(proposal)
                 .build();
 
-        proposal.getJobPost().setStatus(JobStatus.IN_PROGRESS);
+        contract = contractRepo.save(contract);
+        return mapToResponse(contract);
+    }
+
+    @Override
+    @Transactional
+    public ContractResponse acceptContract(Long contractId, Long userId, String signatureUrl) {
+        Contract contract = contractRepo.findById(contractId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contract", "id", contractId));
+
+        if (contract.getStatus() != ContractStatus.PENDING_ACCEPTANCE) {
+            throw new BadRequestException("Contract is not pending acceptance");
+        }
+
+        if (signatureUrl == null || signatureUrl.isBlank()) {
+            throw new BadRequestException("Signature is required to accept the contract");
+        }
+
+        boolean isClient = contract.getClient().getUser().getId().equals(userId);
+        boolean isFreelancer = contract.getFreelancer().getUser().getId().equals(userId);
+
+        if (!isClient && !isFreelancer) {
+            throw new BadRequestException("You are not a party to this contract");
+        }
+
+        if (isClient) {
+            contract.setClientAccepted(true);
+            contract.setClientSignatureUrl(signatureUrl);
+            contract.setClientSignedAt(LocalDateTime.now());
+        }
+        if (isFreelancer) {
+            contract.setFreelancerAccepted(true);
+            contract.setFreelancerSignatureUrl(signatureUrl);
+            contract.setFreelancerSignedAt(LocalDateTime.now());
+        }
+
+        // Both signed — activate
+        if (contract.isClientAccepted() && contract.isFreelancerAccepted()) {
+            contract.setStatus(ContractStatus.ACTIVE);
+            contract.setStartDate(LocalDateTime.now());
+            contract.getJobPost().setStatus(JobStatus.IN_PROGRESS);
+        }
+
         contract = contractRepo.save(contract);
         return mapToResponse(contract);
     }
@@ -182,12 +225,19 @@ public class ContractServiceImpl implements ContractService {
                 .startDate(contract.getStartDate())
                 .endDate(contract.getEndDate())
                 .status(contract.getStatus())
+                .clientAccepted(contract.isClientAccepted())
+                .freelancerAccepted(contract.isFreelancerAccepted())
+                .clientSignatureUrl(contract.getClientSignatureUrl())
+                .freelancerSignatureUrl(contract.getFreelancerSignatureUrl())
+                .clientSignedAt(contract.getClientSignedAt())
+                .freelancerSignedAt(contract.getFreelancerSignedAt())
                 .freelancerId(contract.getFreelancer().getId())
                 .freelancerName(contract.getFreelancer().getUser().getFirstName() + " " + contract.getFreelancer().getUser().getLastName())
                 .clientId(contract.getClient().getId())
                 .clientName(contract.getClient().getUser().getFirstName() + " " + contract.getClient().getUser().getLastName())
                 .jobPostId(contract.getJobPost() != null ? contract.getJobPost().getId() : null)
                 .jobPostTitle(contract.getJobPost() != null ? contract.getJobPost().getTitle() : null)
+                .proposalId(contract.getProposal() != null ? contract.getProposal().getId() : null)
                 .milestones(milestoneResponses)
                 .createdAt(contract.getCreatedAt())
                 .build();

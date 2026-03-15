@@ -47,13 +47,19 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private UserRole role;
 
+    // FIX: renamed from "isActive" to "active".
+    // Lombok @Getter on a boolean field named "isActive" generates isIsActive() — double "is".
+    // Renamed to "active" so Lombok generates isActive() and setActive() as expected.
+    // @Column(name = "is_active") keeps the existing DB column name — no migration needed.
     @Column(name = "is_active")
     @Builder.Default
-    private boolean isActive = true;
+    private boolean active = true;
 
+    // FIX: same issue — renamed from "isBanned" to "banned".
+    // Lombok was generating isIsBanned() / setIsBanned() which no caller could reach.
     @Column(name = "is_banned")
     @Builder.Default
-    private boolean isBanned = false;
+    private boolean banned = false;
 
     @Column(name = "email_verified")
     @Builder.Default

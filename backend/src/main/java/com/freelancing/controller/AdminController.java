@@ -41,4 +41,11 @@ public class AdminController {
         userService.unbanUser(id);
         return ResponseEntity.ok(ApiResponse.success("User unbanned", null));
     }
+
+    @PutMapping("/users/{id}/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyUser(@PathVariable Long id) {
+        userService.verifyUser(id);
+        return ResponseEntity.ok(ApiResponse.success("User verified", null));
+    }
 }
+

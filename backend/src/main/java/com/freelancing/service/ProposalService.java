@@ -14,4 +14,5 @@ public interface ProposalService {
     ProposalResponse rejectProposal(Long id);
     Page<ProposalResponse> getProposalsByJob(Long jobPostId, Pageable pageable);
     Page<ProposalResponse> getProposalsByFreelancer(Long freelancerId, Pageable pageable);
+    Page<ProposalResponse> getProposalsByUserId(Long userId, Pageable pageable); // ADDED: for /my endpoint
 }

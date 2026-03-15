@@ -11,11 +11,12 @@ import java.math.BigDecimal;
 public interface JobPostService {
     Page<JobPostResponse> getAllJobs(Pageable pageable);
     JobPostResponse getJobById(Long id);
-    JobPostResponse createJob(Long clientProfileId, JobPostRequest request);
+    JobPostResponse createJob(Long userId, JobPostRequest request);
     JobPostResponse updateJob(Long id, JobPostRequest request);
     void deleteJob(Long id);
     Page<JobPostResponse> searchJobs(String keyword, JobStatus status, BigDecimal minBudget, BigDecimal maxBudget, Pageable pageable);
     Page<JobPostResponse> getJobsByClient(Long clientId, Pageable pageable);
+    Page<JobPostResponse> getJobsByUserId(Long userId, Pageable pageable); // ADDED: for /my endpoint
     void addSkillToJob(Long jobId, Long skillId);
     void removeSkillFromJob(Long jobId, Long skillId);
 }

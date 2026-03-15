@@ -2,6 +2,7 @@ import api from './axios';
 
 export const jobService = {
   getAll: (page = 0, size = 10) => api.get(`/jobs?page=${page}&size=${size}`),
+  getMyJobs: (page = 0, size = 10) => api.get(`/jobs/my?page=${page}&size=${size}`), // ADDED: client's own jobs
   getById: (id) => api.get(`/jobs/${id}`),
   create: (data) => api.post('/jobs', data),
   update: (id, data) => api.put(`/jobs/${id}`, data),

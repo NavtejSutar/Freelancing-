@@ -5,4 +5,5 @@ export const adminService = {
   getUserById: (id) => api.get(`/admin/users/${id}`),
   banUser: (id) => api.put(`/admin/users/${id}/ban`),
   unbanUser: (id) => api.put(`/admin/users/${id}/unban`),
+  verifyUser: (id) => api.put(`/admin/users/${id}/verify`),
 };

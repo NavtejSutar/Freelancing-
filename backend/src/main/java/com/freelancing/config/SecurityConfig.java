@@ -53,6 +53,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/jobs/**", "/api/freelancers/**",
                                 "/api/skills/**", "/api/clients/**").permitAll()
 
+                        // Serve uploaded files publicly
+                        .requestMatchers(HttpMethod.GET, "/api/files/**").permitAll()
+                        // File upload requires auth
+                        .requestMatchers(HttpMethod.POST, "/api/files/**").authenticated()
+
                         // Admin endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

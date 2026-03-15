@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { jobService } from '../../api/jobService';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { HiPlus } from 'react-icons/hi';
 
 export default function MyJobs() {
-  const { user } = useAuth();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    jobService.getAll(0, 50)
+    // FIX: was calling jobService.getAll() which returns ALL jobs from every client.
+    // Now calls /api/jobs/my which filters by the logged-in client's userId server-side.
+    jobService.getMyJobs(0, 50)
       .then(({ data }) => setJobs(data.data?.content || []))
       .catch(() => setJobs([]))
       .finally(() => setLoading(false));
@@ -41,7 +41,7 @@ export default function MyJobs() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{job.title}</h3>
-                  <p className="text-sm text-gray-500 mt-1">${job.budgetMin} - ${job.budgetMax} &middot; {job.proposalCount || 0} proposals</p>
+                  <p className="text-sm text-gray-500 mt-1">₹{job.budgetMin} - ₹{job.budgetMax} &middot; {job.proposalCount || 0} proposals</p>
                 </div>
                 <StatusBadge status={job.status} />
               </div>

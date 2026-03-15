@@ -84,7 +84,7 @@ public class ProposalController {
     @PreAuthorize("hasRole('FREELANCER')")
     public ResponseEntity<ApiResponse<Page<ProposalResponse>>> getMyProposals(
             @AuthenticationPrincipal CustomUserDetails userDetails, Pageable pageable) {
-        Page<ProposalResponse> response = proposalService.getProposalsByFreelancer(userDetails.getId(), pageable);
+        Page<ProposalResponse> response = proposalService.getProposalsByUserId(userDetails.getId(), pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

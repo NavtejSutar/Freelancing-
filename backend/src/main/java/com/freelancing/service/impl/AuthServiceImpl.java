@@ -35,6 +35,24 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final ModelMapper modelMapper;
 
+    // FIX: ModelMapper STRICT cannot match User.isActive() -> UserResponse.active.
+    // Manual mapping used everywhere instead of modelMapper.map(user, UserResponse.class).
+    private UserResponse toResponse(User user) {
+        return UserResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
+                .phoneNumber(user.getPhoneNumber())
+                .avatarUrl(user.getAvatarUrl())
+                .role(user.getRole())
+                .active(user.isActive())
+                .banned(user.isBanned())
+                .emailVerified(user.isEmailVerified())
+                .createdAt(user.getCreatedAt())
+                .build();
+    }
+
     @Override
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -46,6 +64,10 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Cannot register as ADMIN");
         }
 
+        // All CLIENT accounts start inactive — admin must verify before they can log in.
+        // FREELANCER and other roles are active immediately.
+        boolean isActive = request.getRole() != UserRole.CLIENT;
+
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -53,10 +75,20 @@ public class AuthServiceImpl implements AuthService {
                 .lastName(request.getLastName())
                 .phoneNumber(request.getPhoneNumber())
                 .role(request.getRole())
-                .isActive(true)
+                .active(isActive)  // FIX: was .isActive(isActive) — builder method is .active() after field rename
                 .build();
 
-        user = userRepository.save(user); 
+        user = userRepository.save(user);
+
+        UserResponse userResponse = toResponse(user);  // FIX: was modelMapper.map(user, UserResponse.class)
+
+        // Client accounts must be verified by admin before they can log in.
+        // Return user info but no tokens — they cannot authenticate yet.
+        if (user.getRole() == UserRole.CLIENT && !user.isActive()) {
+            return AuthResponse.builder()
+                    .user(userResponse)
+                    .build();
+        }
 
         CustomUserDetails userDetails = CustomUserDetails.build(user);
         String accessToken = jwtTokenProvider.generateAccessToken(userDetails);
@@ -66,15 +98,20 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .user(modelMapper.map(user, UserResponse.class))
+                .user(userResponse)
                 .build();
     }
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
+        } catch (org.springframework.security.authentication.DisabledException ex) {
+            throw new BadRequestException("Client account pending admin verification");
+        }
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         User user = userRepository.findByEmail(userDetails.getEmail())
@@ -84,6 +121,10 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Your account has been banned");
         }
 
+        if (user.getRole() == UserRole.CLIENT && !user.isActive()) {
+            throw new BadRequestException("Client account pending admin verification");
+        }
+
         String accessToken = jwtTokenProvider.generateAccessToken(userDetails);
         String refreshToken = createRefreshToken(user);
 
@@ -91,7 +132,7 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .user(modelMapper.map(user, UserResponse.class))
+                .user(toResponse(user))  // FIX: was modelMapper.map(user, UserResponse.class)
                 .build();
     }
 
@@ -127,7 +168,7 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
-                .user(modelMapper.map(user, UserResponse.class))
+                .user(toResponse(user))  // FIX: was modelMapper.map(user, UserResponse.class)
                 .build();
     }
 

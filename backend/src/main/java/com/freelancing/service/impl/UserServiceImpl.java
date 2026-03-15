@@ -3,15 +3,21 @@ package com.freelancing.service.impl;
 import com.freelancing.dto.request.UpdateUserRequest;
 import com.freelancing.dto.response.UserResponse;
 import com.freelancing.entity.User;
+import com.freelancing.entity.enums.UserRole;
+import com.freelancing.exception.BadRequestException;
 import com.freelancing.exception.ResourceNotFoundException;
 import com.freelancing.repository.UserRepository;
 import com.freelancing.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -20,10 +26,26 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final ModelMapper modelMapper;
 
+    private UserResponse toResponse(User user) {
+        UserResponse res = new UserResponse();
+        res.setId(user.getId());
+        res.setEmail(user.getEmail());
+        res.setFirstName(user.getFirstName());
+        res.setLastName(user.getLastName());
+        res.setPhoneNumber(user.getPhoneNumber());
+        res.setAvatarUrl(user.getAvatarUrl());
+        res.setRole(user.getRole());
+        res.setActive(user.isActive());
+        res.setBanned(user.isBanned());
+        res.setEmailVerified(user.isEmailVerified());
+        res.setCreatedAt(user.getCreatedAt());
+        return res;
+    }
+
     @Override
     public UserResponse getCurrentUser(Long userId) {
         User user = findUserById(userId);
-        return modelMapper.map(user, UserResponse.class);
+        return toResponse(user);
     }
 
     @Override
@@ -37,7 +59,7 @@ public class UserServiceImpl implements UserService {
         if (request.getAvatarUrl() != null) user.setAvatarUrl(request.getAvatarUrl());
 
         user = userRepository.save(user);
-        return modelMapper.map(user, UserResponse.class);
+        return toResponse(user);
     }
 
     @Override
@@ -50,14 +72,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Page<UserResponse> getAllUsers(Pageable pageable) {
-        return userRepository.findAll(pageable)
-                .map(user -> modelMapper.map(user, UserResponse.class));
+        Page<User> userPage = userRepository.findAll(pageable);
+        List<UserResponse> responseList = new ArrayList<>();
+        for (User user : userPage.getContent()) {
+            responseList.add(toResponse(user));
+        }
+        return new PageImpl<>(responseList, pageable, userPage.getTotalElements());
     }
 
     @Override
     public UserResponse getUserById(Long id) {
         User user = findUserById(id);
-        return modelMapper.map(user, UserResponse.class);
+        return toResponse(user);
     }
 
     @Override
@@ -74,6 +100,20 @@ public class UserServiceImpl implements UserService {
     public void unbanUser(Long id) {
         User user = findUserById(id);
         user.setBanned(false);
+        user.setActive(true);
+        userRepository.save(user);
+    }
+
+    @Override
+    @Transactional
+    public void verifyUser(Long id) {
+        User user = findUserById(id);
+        if (user.getRole() != UserRole.CLIENT) {
+            throw new BadRequestException("Only client accounts require admin verification");
+        }
+        if (user.isActive()) {
+            throw new BadRequestException("User is already verified");
+        }
         user.setActive(true);
         userRepository.save(user);
     }

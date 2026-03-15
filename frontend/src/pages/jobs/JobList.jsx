@@ -83,7 +83,7 @@ export default function JobList() {
                   </div>
                   <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
                     <span>{job.budgetType === 'FIXED' ? 'Fixed Price' : 'Hourly'}</span>
-                    <span>${job.budgetMin} - ${job.budgetMax}</span>
+                    <span>₹{job.budgetMin} - ₹{job.budgetMax}</span>
                     <span>{job.experienceLevel?.replace(/_/g, ' ')}</span>
                     <span>{job.proposalCount || 0} proposals</span>
                   </div>

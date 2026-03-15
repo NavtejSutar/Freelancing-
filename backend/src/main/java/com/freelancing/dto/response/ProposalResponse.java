@@ -23,5 +23,6 @@ public class ProposalResponse {
     private String freelancerName;
     private Long jobPostId;
     private String jobPostTitle;
+    private String coverLetterPdfUrl; // ADDED: URL to uploaded PDF cover letter
     private LocalDateTime createdAt;
 }
