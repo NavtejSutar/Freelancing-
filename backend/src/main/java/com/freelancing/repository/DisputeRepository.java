@@ -13,8 +13,10 @@ public interface DisputeRepository extends JpaRepository<Dispute, Long> {
     Page<Dispute> findByInitiatorId(Long initiatorId, Pageable pageable);
     Page<Dispute> findByStatus(DisputeStatus status, Pageable pageable);
 
-    // FIX: query disputes by either party (client OR freelancer) of the contract,
-    // so both sides can see disputes — not just the one who raised it
+    // Used by non-admin users to see disputes on contracts they are a party to
     Page<Dispute> findByContractClientUserIdOrContractFreelancerUserId(
             Long clientUserId, Long freelancerUserId, Pageable pageable);
+
+    // Used to prevent duplicate open disputes on the same contract
+    boolean existsByContractIdAndStatus(Long contractId, DisputeStatus status);
 }

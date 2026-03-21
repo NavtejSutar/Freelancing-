@@ -16,6 +16,7 @@ import JobList from '../pages/jobs/JobList';
 import JobDetail from '../pages/jobs/JobDetail';
 import JobForm from '../pages/jobs/JobForm';
 import MyJobs from '../pages/jobs/MyJobs';
+import ActiveJobs from '../pages/jobs/ActiveJobs';
 
 // Proposals
 import MyProposals from '../pages/proposals/MyProposals';
@@ -38,7 +39,7 @@ import AdminReports from '../pages/admin/AdminReports';
 import AdminDisputes from '../pages/admin/AdminDisputes';
 import AdminWithdrawals from '../pages/admin/AdminWithdrawals';
 import AdminPayments from '../pages/admin/AdminPayments';
-import AdminSkills from '../pages/admin/Adminskills'; // ADDED
+import AdminSkills from '../pages/admin/Adminskills';
 
 // Other
 import Notifications from '../pages/notifications/Notifications';
@@ -60,6 +61,7 @@ export default function AppRoutes() {
         {/* Jobs */}
         <Route path="/jobs" element={<JobList />} />
         <Route path="/jobs/my" element={<MyJobs />} />
+        <Route path="/jobs/active" element={<ActiveJobs />} />
         <Route path="/jobs/create" element={<ProtectedRoute roles={['CLIENT']}><JobForm /></ProtectedRoute>} />
         <Route path="/jobs/:id/edit" element={<ProtectedRoute roles={['CLIENT']}><JobForm /></ProtectedRoute>} />
         <Route path="/jobs/:id" element={<JobDetail />} />

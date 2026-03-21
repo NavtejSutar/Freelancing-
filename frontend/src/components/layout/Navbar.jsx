@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { HiMenu, HiX, HiBell, HiChat, HiLogout, HiUser, HiHome, HiBriefcase, HiDocumentText, HiClipboardList, HiCash, HiStar, HiCog, HiUsers, HiFlag, HiExclamationCircle, HiLightningBolt } from 'react-icons/hi';
+import { HiMenu, HiX, HiBell, HiChat, HiLogout, HiUser, HiHome, HiBriefcase, HiDocumentText, HiClipboardList, HiCash, HiStar, HiCog, HiUsers, HiFlag, HiExclamationCircle, HiLightningBolt, HiCollection } from 'react-icons/hi';
 import { notificationService } from '../../api/notificationService';
 import { useEffect } from 'react';
 
@@ -33,6 +33,7 @@ export default function Navbar() {
       links.push(
         { to: '/jobs', label: 'Find Jobs', icon: HiBriefcase },
         { to: '/proposals/my', label: 'My Proposals', icon: HiDocumentText },
+        { to: '/jobs/active', label: 'Active Jobs', icon: HiCollection },
         { to: '/contracts', label: 'Contracts', icon: HiClipboardList },
       );
     }
@@ -40,13 +41,14 @@ export default function Navbar() {
       links.push(
         { to: '/jobs/my', label: 'My Jobs', icon: HiBriefcase },
         { to: '/jobs/create', label: 'Post Job', icon: HiDocumentText },
+        { to: '/jobs/active', label: 'Active Jobs', icon: HiCollection },
         { to: '/contracts', label: 'Contracts', icon: HiClipboardList },
       );
     }
     if (user?.role === 'ADMIN') {
       links.push(
         { to: '/admin/users', label: 'Users', icon: HiUsers },
-        { to: '/admin/skills', label: 'Skills', icon: HiLightningBolt }, // ADDED
+        { to: '/admin/skills', label: 'Skills', icon: HiLightningBolt },
         { to: '/admin/reports', label: 'Reports', icon: HiFlag },
         { to: '/admin/disputes', label: 'Disputes', icon: HiExclamationCircle },
         { to: '/admin/withdrawals', label: 'Withdrawals', icon: HiCash },

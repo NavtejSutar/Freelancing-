@@ -21,10 +21,17 @@ public class DisputeController {
 
     private final DisputeService disputeService;
 
+    // FIX: admins need to see ALL disputes, not just ones where they are
+    // a contract party. Pass null as userId when the caller is an admin so
+    // the service falls through to findAll(). For regular users, pass their
+    // userId so they only see disputes on their own contracts.
     @GetMapping
     public ResponseEntity<ApiResponse<Page<DisputeResponse>>> getDisputes(
             @AuthenticationPrincipal CustomUserDetails userDetails, Pageable pageable) {
-        Page<DisputeResponse> response = disputeService.getAllDisputes(userDetails.getId(), pageable);
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        Long userId = isAdmin ? null : userDetails.getId();
+        Page<DisputeResponse> response = disputeService.getAllDisputes(userId, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -42,10 +49,12 @@ public class DisputeController {
         return ResponseEntity.ok(ApiResponse.success("Dispute created", response));
     }
 
+    // FIX: removed @PreAuthorize("hasRole('ADMIN')") so the dispute initiator
+    // can also resolve their own dispute. Service layer enforces the permission.
     @PutMapping("/{id}/resolve")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<DisputeResponse>> resolveDispute(
-            @PathVariable Long id, @RequestParam String resolution,
+            @PathVariable Long id,
+            @RequestParam String resolution,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
         DisputeResponse response = disputeService.resolveDispute(id, resolution, userDetails.getId());
         return ResponseEntity.ok(ApiResponse.success("Dispute resolved", response));

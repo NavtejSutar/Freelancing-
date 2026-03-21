@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { toast } from 'react-toastify';
-import { HiPlus, HiCheckCircle, HiDownload, HiUpload, HiStar, HiExclamationCircle, HiChat, HiTrash, HiX } from 'react-icons/hi';
+import { HiPlus, HiCheckCircle, HiDownload, HiUpload, HiStar, HiExclamationCircle, HiChat, HiX } from 'react-icons/hi';
 
 // ── PDF generation ──
 const downloadContractPdf = async (contract, milestones) => {
@@ -115,10 +115,10 @@ export default function ContractDetail() {
   const [showMilestoneForm, setShowMilestoneForm] = useState(false);
   const [milestoneData, setMilestoneData] = useState({ title: '', description: '', amount: '', dueDate: '' });
 
-  // Work submission form (per milestone) + file links
+  // Work submission
   const [showSubmitWork, setShowSubmitWork] = useState(null);
   const [submitDescription, setSubmitDescription] = useState('');
-  const [submitLinks, setSubmitLinks] = useState(['']); // array of URL strings (the "folders/files")
+  const [submitLinks, setSubmitLinks] = useState(['']);
   const [submitting, setSubmitting] = useState(false);
 
   // Review
@@ -193,7 +193,7 @@ export default function ContractDetail() {
   };
 
   const handleInitiatePayment = async () => {
-    if (!window.confirm('Initiate payment of ₹' + contract.totalAmount + ' for this contract?\n\nThis creates a payment record that an admin will confirm. After initiating payment you can then mark the contract complete.')) return;
+    if (!window.confirm(`Initiate payment of ₹${contract.totalAmount} for this contract?\n\nThis creates a payment record that an admin will confirm. After initiating payment you can then mark the contract complete.`)) return;
     try {
       await paymentService.initiate(id);
       toast.success('Payment initiated — you can now mark the contract as complete after admin confirmation');
@@ -216,7 +216,6 @@ export default function ContractDetail() {
     catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
-  // Submit work with description + file/folder links
   const handleSubmitWork = async (milestoneId) => {
     if (!submitDescription.trim()) { toast.error('Please describe your submission'); return; }
     setSubmitting(true);
@@ -257,8 +256,6 @@ export default function ContractDetail() {
     finally { setSubmittingDispute(false); }
   };
 
-  // FIX: either the initiator OR admin can resolve a dispute — the resolution
-  // call goes back to ACTIVE contract status automatically
   const handleResolveDispute = async (disputeId) => {
     if (!disputeResolution.trim()) { toast.error('Please enter a resolution'); return; }
     try {
@@ -268,10 +265,8 @@ export default function ContractDetail() {
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to resolve dispute'); }
   };
 
-  // FIX: start a message thread with the other party using their userId from contract
   const handleMessageOtherParty = async () => {
     const otherUserId = isClient ? contract.freelancerUserId : contract.clientUserId;
-    const otherName = isClient ? contract.freelancerName : contract.clientName;
     try {
       const { data } = await messageService.createThread({
         subject: `Re: ${contract.title}`,
@@ -302,6 +297,7 @@ export default function ContractDetail() {
   const mySignatureUrl = isClient ? contract.clientSignatureUrl : contract.freelancerSignatureUrl;
   const mySignedAt = isClient ? contract.clientSignedAt : contract.freelancerSignedAt;
   const hasReviewed = reviews.some(r => r.reviewerId === user?.id);
+  // openDispute: if an OPEN dispute exists, hide the "Raise Dispute" button so users can't create duplicates
   const openDispute = disputes.find(d => d.status === 'OPEN');
 
   return (
@@ -465,7 +461,6 @@ export default function ContractDetail() {
         </div>
 
         <div className="flex gap-3 flex-wrap">
-          {/* FIX: Payment must come BEFORE complete. Show payment first, then complete. */}
           {isActive && isClient && (
             <>
               <button onClick={handleInitiatePayment}
@@ -486,21 +481,19 @@ export default function ContractDetail() {
             className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 text-sm">
             <HiDownload className="w-4 h-4" /> {downloading ? 'Generating...' : 'Download PDF'}
           </button>
-          {/* FIX: Message the other party using their userId from ContractResponse */}
           {(isActive || isCompleted || isPendingAcceptance) && (isClient || isFreelancer) && (
             <button onClick={handleMessageOtherParty}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 text-sm">
-              <HiChat className="w-4 h-4" /> Message {isClient ? contract.freelancerName.split(' ')[0] : contract.clientName.split(' ')[0]}
+              <HiChat className="w-4 h-4" /> Message {isClient ? contract.freelancerName?.split(' ')[0] : contract.clientName?.split(' ')[0]}
             </button>
           )}
-          {/* Raise dispute */}
+          {/* Only show Raise Dispute when contract is active AND there is no open dispute already */}
           {(isActive || isDisputed) && !openDispute && (
             <button onClick={() => setShowDisputeForm(true)}
               className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm">
               <HiExclamationCircle className="w-4 h-4" /> Raise Dispute
             </button>
           )}
-          {/* Leave review */}
           {isCompleted && !hasReviewed && (
             <button onClick={() => setShowReviewForm(true)}
               className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 text-sm">
@@ -509,7 +502,6 @@ export default function ContractDetail() {
           )}
         </div>
 
-        {/* Disputed banner */}
         {isDisputed && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
             <HiExclamationCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
@@ -527,7 +519,9 @@ export default function ContractDetail() {
           <div className="space-y-4">
             {disputes.map((d) => {
               const isInitiator = d.initiatorId === user?.id;
-              const canResolve = (isInitiator || user?.role === 'ADMIN') && d.status === 'OPEN';
+              // Only the person who raised the dispute can resolve it from here.
+              // Admin resolves from the Admin Disputes panel.
+              const canResolve = isInitiator && d.status === 'OPEN';
               return (
                 <div key={d.id} className="p-4 bg-red-50 rounded-lg border border-red-100">
                   <div className="flex justify-between items-start">
@@ -547,7 +541,6 @@ export default function ContractDetail() {
                     <StatusBadge status={d.status} />
                   </div>
 
-                  {/* FIX: either the initiator or admin can resolve the dispute */}
                   {canResolve && (
                     <div className="mt-3 pt-3 border-t border-red-100">
                       {resolvingDisputeId === d.id ? (
@@ -555,26 +548,34 @@ export default function ContractDetail() {
                           <textarea
                             value={disputeResolution}
                             onChange={(e) => setDisputeResolution(e.target.value)}
-                            placeholder={isInitiator ? 'Describe how the issue was resolved, or why you are withdrawing the dispute...' : 'Describe the admin resolution...'}
+                            placeholder="Describe how the issue was resolved or why you are withdrawing this dispute..."
                             rows={2}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-300 outline-none"
                           />
                           <div className="flex gap-2">
                             <button onClick={() => handleResolveDispute(d.id)}
-                              className="px-4 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
-                              {isInitiator ? 'Withdraw / Resolve' : 'Resolve'}
+                              className="px-4 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 font-medium">
+                              Confirm Resolution
                             </button>
                             <button onClick={() => { setResolvingDisputeId(null); setDisputeResolution(''); }}
-                              className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm">Cancel</button>
+                              className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm">
+                              Cancel
+                            </button>
                           </div>
                         </div>
                       ) : (
                         <button onClick={() => setResolvingDisputeId(d.id)}
-                          className="text-sm text-green-700 font-medium hover:underline">
-                          {isInitiator ? '✓ Withdraw / Mark as Resolved' : '✓ Resolve Dispute'}
+                          className="text-sm text-green-700 font-semibold hover:underline">
+                          ✓ Mark as Resolved / Withdraw Dispute
                         </button>
                       )}
                     </div>
+                  )}
+
+                  {d.status === 'OPEN' && !isInitiator && (
+                    <p className="text-xs text-gray-400 mt-2 italic">
+                      Only the person who raised this dispute can resolve it. An admin can also intervene from the admin panel.
+                    </p>
                   )}
                 </div>
               );
@@ -589,7 +590,7 @@ export default function ContractDetail() {
           <h2 className="text-lg font-semibold text-red-700 mb-1 flex items-center gap-2">
             <HiExclamationCircle className="w-5 h-5" /> Raise a Dispute
           </h2>
-          <p className="text-sm text-gray-500 mb-4">Describe the issue. The other party and admin will be notified.</p>
+          <p className="text-sm text-gray-500 mb-4">Describe the issue. The admin will be notified and will mediate.</p>
           <form onSubmit={handleSubmitDispute} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
@@ -673,7 +674,6 @@ export default function ContractDetail() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Milestones</h2>
-          {/* FIX: both client AND freelancer can add milestones on active contracts */}
           {isActive && (isClient || isFreelancer) && (
             <button onClick={() => setShowMilestoneForm(!showMilestoneForm)}
               className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-500">
@@ -694,7 +694,6 @@ export default function ContractDetail() {
               <input type="number" value={milestoneData.amount} onChange={(e) => setMilestoneData(p => ({ ...p, amount: e.target.value }))}
                 placeholder="Amount (₹)" required
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-              {/* FIX: type="date" sends "2026-03-19" — backend now accepts String and parses it */}
               <input type="date" value={milestoneData.dueDate} onChange={(e) => setMilestoneData(p => ({ ...p, dueDate: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
             </div>
@@ -734,10 +733,8 @@ export default function ContractDetail() {
                     </div>
                   </div>
 
-                  {/* Work submission — only on active contracts */}
                   {isActive && (
                     <div className="mt-3 border-t border-gray-100 pt-3 space-y-2">
-                      {/* Freelancer: submit work button */}
                       {isFreelancer && (ms.status === 'PENDING' || ms.status === 'IN_PROGRESS') && (
                         showSubmitWork === ms.id ? (
                           <div className="space-y-2">
@@ -745,8 +742,6 @@ export default function ContractDetail() {
                               placeholder="Describe what you've completed..."
                               rows={3}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
-
-                            {/* FIX: file/folder links — freelancer can add Google Drive, Dropbox, GitHub etc. */}
                             <div>
                               <p className="text-xs text-gray-500 font-medium mb-1 flex items-center gap-1">
                                 📁 Attach file/folder links (Google Drive, GitHub, Dropbox, etc.)
@@ -776,7 +771,6 @@ export default function ContractDetail() {
                                 <HiPlus className="w-3.5 h-3.5" /> Add another link
                               </button>
                             </div>
-
                             <div className="flex gap-2">
                               <button onClick={() => handleSubmitWork(ms.id)} disabled={submitting}
                                 className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1">
@@ -795,7 +789,6 @@ export default function ContractDetail() {
                         )
                       )}
 
-                      {/* Latest submission */}
                       {latestSub && (
                         <div className={`p-3 rounded-lg text-sm ${
                           latestSub.status === 'APPROVED' ? 'bg-green-50 border border-green-100' :
@@ -807,8 +800,6 @@ export default function ContractDetail() {
                             <StatusBadge status={latestSub.status} />
                           </div>
                           {latestSub.description && <p className="text-gray-700">{latestSub.description}</p>}
-
-                          {/* Show attached links */}
                           {latestSub.attachmentUrls && latestSub.attachmentUrls.length > 0 && (
                             <div className="mt-2 space-y-1">
                               <p className="text-xs text-gray-500 font-medium">📁 Attached files/folders:</p>
@@ -820,12 +811,9 @@ export default function ContractDetail() {
                               ))}
                             </div>
                           )}
-
                           <p className="text-xs text-gray-400 mt-1">
                             Submitted {new Date(latestSub.createdAt || latestSub.submittedAt).toLocaleString()}
                           </p>
-
-                          {/* Client: approve/reject */}
                           {isClient && latestSub.status === 'PENDING' && (
                             <div className="flex gap-2 mt-2">
                               <button onClick={() => handleApproveSubmission(latestSub.id)}
