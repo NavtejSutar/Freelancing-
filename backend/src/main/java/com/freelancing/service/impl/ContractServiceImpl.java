@@ -7,10 +7,12 @@ import com.freelancing.entity.*;
 import com.freelancing.entity.enums.ContractStatus;
 import com.freelancing.entity.enums.JobStatus;
 import com.freelancing.entity.enums.MilestoneStatus;
+import com.freelancing.entity.enums.PaymentStatus;
 import com.freelancing.exception.BadRequestException;
 import com.freelancing.exception.ResourceNotFoundException;
 import com.freelancing.repository.ContractRepository;
 import com.freelancing.repository.MilestoneRepository;
+import com.freelancing.repository.PaymentRepository;
 import com.freelancing.repository.ProposalRepository;
 import com.freelancing.service.ContractService;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +22,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,6 +35,7 @@ public class ContractServiceImpl implements ContractService {
     private final ContractRepository contractRepo;
     private final ProposalRepository proposalRepo;
     private final MilestoneRepository milestoneRepo;
+    private final PaymentRepository paymentRepo;
     private final ModelMapper modelMapper;
 
     @Override
@@ -106,7 +111,6 @@ public class ContractServiceImpl implements ContractService {
             contract.setFreelancerSignedAt(LocalDateTime.now());
         }
 
-        // Both signed — activate
         if (contract.isClientAccepted() && contract.isFreelancerAccepted()) {
             contract.setStatus(ContractStatus.ACTIVE);
             contract.setStartDate(LocalDateTime.now());
@@ -122,6 +126,20 @@ public class ContractServiceImpl implements ContractService {
     public ContractResponse completeContract(Long id) {
         Contract contract = contractRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Contract", "id", id));
+
+        // FIX: enforce payment before completion — client must have initiated a payment
+        // and it must be in PENDING or COMPLETED state before marking the contract done.
+        boolean hasPaid = paymentRepo.existsByContractIdAndStatusIn(
+                id,
+                List.of(PaymentStatus.PENDING, PaymentStatus.COMPLETED)
+        );
+        if (!hasPaid) {
+            throw new BadRequestException(
+                    "Payment must be initiated before marking the contract as complete. " +
+                    "Please click 'Initiate Payment' first."
+            );
+        }
+
         contract.setStatus(ContractStatus.COMPLETED);
         contract.setEndDate(LocalDateTime.now());
         contract = contractRepo.save(contract);
@@ -168,7 +186,9 @@ public class ContractServiceImpl implements ContractService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .amount(request.getAmount())
-                .dueDate(request.getDueDate())
+                // FIX: parse dueDate from String ("2026-03-19") to LocalDateTime
+                // Frontend date input sends date-only strings; we convert to start-of-day LocalDateTime
+                .dueDate(parseDueDate(request.getDueDate()))
                 .sortOrder(request.getSortOrder())
                 .status(MilestoneStatus.PENDING)
                 .contract(contract)
@@ -187,7 +207,7 @@ public class ContractServiceImpl implements ContractService {
         if (request.getTitle() != null) milestone.setTitle(request.getTitle());
         if (request.getDescription() != null) milestone.setDescription(request.getDescription());
         if (request.getAmount() != null) milestone.setAmount(request.getAmount());
-        if (request.getDueDate() != null) milestone.setDueDate(request.getDueDate());
+        if (request.getDueDate() != null) milestone.setDueDate(parseDueDate(request.getDueDate()));
         if (request.getSortOrder() != null) milestone.setSortOrder(request.getSortOrder());
 
         milestone = milestoneRepo.save(milestone);
@@ -212,6 +232,28 @@ public class ContractServiceImpl implements ContractService {
         return modelMapper.map(milestone, MilestoneResponse.class);
     }
 
+    // ── Helpers ──
+
+    /**
+     * FIX: Parses dueDate from String to LocalDateTime.
+     * The frontend HTML date input sends "2026-03-19" (date only, no time).
+     * Jackson cannot deserialize that as LocalDateTime ("Text could not be parsed at index 10").
+     * We accept String in the request and parse it here, defaulting to start of day.
+     */
+    private LocalDateTime parseDueDate(String dueDate) {
+        if (dueDate == null || dueDate.isBlank()) return null;
+        try {
+            // Try full datetime first (in case it's already ISO-8601 with time)
+            if (dueDate.contains("T")) {
+                return LocalDateTime.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            }
+            // Date-only string e.g. "2026-03-19" → start of that day
+            return LocalDate.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay();
+        } catch (Exception e) {
+            throw new BadRequestException("Invalid due date format. Use YYYY-MM-DD (e.g. 2026-03-19).");
+        }
+    }
+
     private ContractResponse mapToResponse(Contract contract) {
         List<MilestoneResponse> milestoneResponses = contract.getMilestones().stream()
                 .map(m -> modelMapper.map(m, MilestoneResponse.class))
@@ -233,8 +275,12 @@ public class ContractServiceImpl implements ContractService {
                 .freelancerSignedAt(contract.getFreelancerSignedAt())
                 .freelancerId(contract.getFreelancer().getId())
                 .freelancerName(contract.getFreelancer().getUser().getFirstName() + " " + contract.getFreelancer().getUser().getLastName())
+                // FIX: expose freelancer's and client's actual User IDs so the frontend
+                // can start a message thread without needing a separate lookup
+                .freelancerUserId(contract.getFreelancer().getUser().getId())
                 .clientId(contract.getClient().getId())
                 .clientName(contract.getClient().getUser().getFirstName() + " " + contract.getClient().getUser().getLastName())
+                .clientUserId(contract.getClient().getUser().getId())
                 .jobPostId(contract.getJobPost() != null ? contract.getJobPost().getId() : null)
                 .jobPostTitle(contract.getJobPost() != null ? contract.getJobPost().getTitle() : null)
                 .proposalId(contract.getProposal() != null ? contract.getProposal().getId() : null)

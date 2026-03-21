@@ -36,8 +36,8 @@ public class Proposal extends BaseEntity {
     @Column(name = "estimated_duration")
     private String estimatedDuration;
 
-    @Column(name = "cover_letter_pdf_url")
-    private String coverLetterPdfUrl; // ADDED: optional PDF version of cover letter
+    @Column(name = "cover_letter_pdf_url", columnDefinition = "MEDIUMTEXT")
+    private String coverLetterPdfUrl; // stores base64 data URL of PDF — works on any deployment
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

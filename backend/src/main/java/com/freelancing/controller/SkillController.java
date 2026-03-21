@@ -2,8 +2,8 @@ package com.freelancing.controller;
 
 import com.freelancing.dto.request.SkillRequest;
 import com.freelancing.dto.response.ApiResponse;
+import com.freelancing.dto.response.SkillCategoryResponse;
 import com.freelancing.dto.response.SkillResponse;
-import com.freelancing.entity.SkillCategory;
 import com.freelancing.service.SkillService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -56,23 +56,25 @@ public class SkillController {
 
     // --- Categories ---
 
+    // FIX: return type changed from List<SkillCategory> (raw JPA entity) to
+    // List<SkillCategoryResponse> (plain DTO). The raw entity caused Hibernate to
+    // attempt serializing the lazy 'skills' collection after the session was closed
+    // (open-in-view=false), resulting in LazyInitializationException -> 500 error.
     @GetMapping("/categories")
-    public ResponseEntity<ApiResponse<List<SkillCategory>>> getAllCategories() {
-        List<SkillCategory> response = skillService.getAllCategories();
+    public ResponseEntity<ApiResponse<List<SkillCategoryResponse>>> getAllCategories() {
+        List<SkillCategoryResponse> response = skillService.getAllCategories();
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    // FIX: was commented out — uncommented so admin can create categories from frontend
     @PostMapping("/categories")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<SkillCategory>> createCategory(
+    public ResponseEntity<ApiResponse<SkillCategoryResponse>> createCategory(
             @RequestParam String name,
             @RequestParam(required = false) String description) {
-        SkillCategory response = skillService.createCategory(name, description);
+        SkillCategoryResponse response = skillService.createCategory(name, description);
         return ResponseEntity.ok(ApiResponse.success("Category created", response));
     }
 
-    // FIX: was commented out — uncommented so admin can delete categories from frontend
     @DeleteMapping("/categories/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable Long id) {

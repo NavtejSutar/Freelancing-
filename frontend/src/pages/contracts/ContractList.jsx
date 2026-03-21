@@ -36,11 +36,23 @@ export default function ContractList() {
         <>
           <div className="space-y-4">
             {contracts.map((c) => (
-              <Link key={c.id} to={`/contracts/${c.id}`} className="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <Link
+                key={c.id}
+                to={`/contracts/${c.id}`}
+                className="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
+              >
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Contract #{c.id}</h3>
+                    {/* FIX: was showing "Contract #id" — now shows actual contract title */}
+                    <h3 className="text-lg font-semibold text-gray-900">{c.title || `Contract #${c.id}`}</h3>
+                    {/* FIX: show client and freelancer names */}
+                    {(c.clientName || c.freelancerName) && (
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {c.clientName} ↔ {c.freelancerName}
+                      </p>
+                    )}
                     <div className="flex gap-4 mt-2 text-sm text-gray-500">
+                      {/* FIX: was "₹${c.totalAmount}" — removed the stray $ sign */}
                       <span>Total: ₹{c.totalAmount}</span>
                       <span>Milestones: {c.milestones?.length || 0}</span>
                       <span>{new Date(c.createdAt).toLocaleDateString()}</span>

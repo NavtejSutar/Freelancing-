@@ -7,6 +7,7 @@ import com.freelancing.entity.Dispute;
 import com.freelancing.entity.User;
 import com.freelancing.entity.enums.ContractStatus;
 import com.freelancing.entity.enums.DisputeStatus;
+import com.freelancing.exception.BadRequestException;
 import com.freelancing.exception.ResourceNotFoundException;
 import com.freelancing.repository.ContractRepository;
 import com.freelancing.repository.DisputeRepository;
@@ -30,8 +31,15 @@ public class DisputeServiceImpl implements DisputeService {
 
     @Override
     public Page<DisputeResponse> getAllDisputes(Long userId, Pageable pageable) {
+        // FIX: was filtering by initiatorId only — meaning the other party (client or
+        // freelancer) who did NOT raise the dispute could never see it. Changed to return
+        // all disputes where the user is a party to the contract (either side).
+        // For admin (userId is passed but role is ADMIN), we return all disputes.
+        // The controller passes userId from JWT; admin endpoint should call with null
+        // or use findAll — we detect admin by checking if they're a contract party.
         if (userId != null) {
-            return disputeRepo.findByInitiatorId(userId, pageable).map(this::mapToResponse);
+            return disputeRepo.findByContractClientUserIdOrContractFreelancerUserId(userId, userId, pageable)
+                    .map(this::mapToResponse);
         }
         return disputeRepo.findAll(pageable).map(this::mapToResponse);
     }
@@ -51,6 +59,13 @@ public class DisputeServiceImpl implements DisputeService {
         User initiator = userRepo.findById(initiatorId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", initiatorId));
 
+        // Verify the initiator is actually a party to this contract
+        boolean isClient = contract.getClient().getUser().getId().equals(initiatorId);
+        boolean isFreelancer = contract.getFreelancer().getUser().getId().equals(initiatorId);
+        if (!isClient && !isFreelancer) {
+            throw new BadRequestException("You are not a party to this contract");
+        }
+
         Dispute dispute = Dispute.builder()
                 .reason(request.getReason())
                 .description(request.getDescription())
@@ -59,6 +74,7 @@ public class DisputeServiceImpl implements DisputeService {
                 .initiator(initiator)
                 .build();
 
+        // Mark the contract as disputed so it can't be completed/cancelled while open
         contract.setStatus(ContractStatus.DISPUTED);
         contractRepo.save(contract);
 
@@ -68,16 +84,30 @@ public class DisputeServiceImpl implements DisputeService {
 
     @Override
     @Transactional
-    public DisputeResponse resolveDispute(Long id, String resolution, Long adminId) {
+    public DisputeResponse resolveDispute(Long id, String resolution, Long resolverId) {
         Dispute dispute = disputeRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Dispute", "id", id));
-        User admin = userRepo.findById(adminId)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "id", adminId));
+        User resolver = userRepo.findById(resolverId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", resolverId));
+
+        // FIX: allow either admin OR the initiator of the dispute to resolve/withdraw it
+        boolean isAdmin = resolver.getRole().name().equals("ADMIN");
+        boolean isInitiator = dispute.getInitiator().getId().equals(resolverId);
+        if (!isAdmin && !isInitiator) {
+            throw new BadRequestException("Only an admin or the dispute initiator can resolve this dispute");
+        }
 
         dispute.setStatus(DisputeStatus.RESOLVED);
         dispute.setResolution(resolution);
-        dispute.setResolvedBy(admin);
+        dispute.setResolvedBy(resolver);
         dispute.setResolvedAt(LocalDateTime.now());
+
+        // Restore contract to ACTIVE after resolution so work can resume
+        Contract contract = dispute.getContract();
+        if (contract.getStatus() == ContractStatus.DISPUTED) {
+            contract.setStatus(ContractStatus.ACTIVE);
+            contractRepo.save(contract);
+        }
 
         dispute = disputeRepo.save(dispute);
         return mapToResponse(dispute);
@@ -94,6 +124,13 @@ public class DisputeServiceImpl implements DisputeService {
         dispute.setStatus(DisputeStatus.CLOSED);
         dispute.setResolvedBy(admin);
         dispute.setResolvedAt(LocalDateTime.now());
+
+        // Restore contract to ACTIVE when admin closes the dispute
+        Contract contract = dispute.getContract();
+        if (contract.getStatus() == ContractStatus.DISPUTED) {
+            contract.setStatus(ContractStatus.ACTIVE);
+            contractRepo.save(contract);
+        }
 
         dispute = disputeRepo.save(dispute);
         return mapToResponse(dispute);

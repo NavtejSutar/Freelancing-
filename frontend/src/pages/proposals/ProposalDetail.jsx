@@ -29,7 +29,7 @@ export default function ProposalDetail() {
     try {
       await proposalService.accept(id);
       toast.success('Proposal accepted! Creating contract...');
-      // Immediately create the contract — client auto-accepts it
+      // Immediately create the contract
       const { data } = await contractService.createFromProposal(id);
       const contractId = data.data?.id;
       toast.success('Contract created — waiting for freelancer to accept');
@@ -71,7 +71,10 @@ export default function ProposalDetail() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <Link to={proposal.jobPostId ? `/jobs/${proposal.jobPostId}` : '/jobs'} className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600">
+      <Link
+        to={proposal.jobPostId ? `/jobs/${proposal.jobPostId}` : '/jobs'}
+        className="flex items-center gap-1 text-sm text-gray-500 hover:text-indigo-600"
+      >
         <HiArrowLeft className="w-4 h-4" /> Back to job
       </Link>
 
@@ -80,10 +83,14 @@ export default function ProposalDetail() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Proposal</h1>
             {proposal.jobPostTitle && (
-              <p className="text-sm text-gray-500 mt-0.5">For: <span className="font-medium text-gray-700">{proposal.jobPostTitle}</span></p>
+              <p className="text-sm text-gray-500 mt-0.5">
+                For: <span className="font-medium text-gray-700">{proposal.jobPostTitle}</span>
+              </p>
             )}
             {proposal.freelancerName && (
-              <p className="text-sm text-gray-500">By: <span className="font-medium text-gray-700">{proposal.freelancerName}</span></p>
+              <p className="text-sm text-gray-500">
+                By: <span className="font-medium text-gray-700">{proposal.freelancerName}</span>
+              </p>
             )}
           </div>
           <StatusBadge status={proposal.status} />
@@ -92,8 +99,8 @@ export default function ProposalDetail() {
         <div className="grid grid-cols-2 gap-4 my-6">
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">Proposed Rate</p>
-            {/* FIX: was p.bidAmount — the field from backend is proposedRate */}
-            <p className="text-xl font-bold text-gray-900">₹${proposal.proposedRate}</p>
+            {/* FIX: was "₹${proposal.proposedRate}" — stray $ removed */}
+            <p className="text-xl font-bold text-gray-900">₹{proposal.proposedRate}</p>
           </div>
           <div className="p-4 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-500">Estimated Duration</p>
@@ -104,6 +111,8 @@ export default function ProposalDetail() {
         <div>
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Cover Letter</h2>
           <p className="text-gray-700 whitespace-pre-line">{proposal.coverLetter}</p>
+
+          {/* Show PDF cover letter download link if freelancer uploaded one */}
           {proposal.coverLetterPdfUrl && (
             <a
               href={proposal.coverLetterPdfUrl}
@@ -151,6 +160,18 @@ export default function ProposalDetail() {
           {proposal.status === 'ACCEPTED' && (
             <p className="text-sm text-green-600 font-medium bg-green-50 px-4 py-2.5 rounded-lg">
               ✓ Proposal accepted — contract has been created
+            </p>
+          )}
+
+          {proposal.status === 'REJECTED' && (
+            <p className="text-sm text-red-600 font-medium bg-red-50 px-4 py-2.5 rounded-lg">
+              ✗ This proposal was rejected
+            </p>
+          )}
+
+          {proposal.status === 'WITHDRAWN' && (
+            <p className="text-sm text-gray-600 font-medium bg-gray-50 px-4 py-2.5 rounded-lg">
+              Proposal withdrawn
             </p>
           )}
         </div>

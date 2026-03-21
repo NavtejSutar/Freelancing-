@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Data
 public class MilestoneRequest {
@@ -17,6 +16,9 @@ public class MilestoneRequest {
     @NotNull(message = "Amount is required")
     private BigDecimal amount;
 
-    private LocalDateTime dueDate;
+    // FIX: was LocalDateTime — the frontend date picker sends "2026-03-19" (date only, no time part)
+    // which cannot be parsed as LocalDateTime. Accept as String and let the service parse it.
+    private String dueDate;
+
     private Integer sortOrder;
 }

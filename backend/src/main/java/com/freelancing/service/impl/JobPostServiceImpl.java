@@ -170,6 +170,7 @@ public class JobPostServiceImpl implements JobPostService {
                 .status(job.getStatus())
                 .deadline(job.getDeadline())
                 .clientId(job.getClient().getId())
+                .clientUserId(job.getClient().getUser().getId())  // ADDED: so frontend can check job ownership
                 .clientName(job.getClient().getUser().getFirstName() + " " + job.getClient().getUser().getLastName())
                 .skills(skillResponses)
                 .proposalCount(job.getProposals().size())

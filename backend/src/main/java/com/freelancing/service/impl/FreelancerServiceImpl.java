@@ -33,7 +33,7 @@ public class FreelancerServiceImpl implements FreelancerService {
     private final ModelMapper modelMapper;
 
     @Override
-    @Transactional(readOnly=true)
+    @Transactional(readOnly = true)
     public Page<FreelancerProfileResponse> getAllFreelancers(Pageable pageable) {
         return freelancerRepo.findAll(pageable).map(this::mapToResponse);
     }
@@ -110,28 +110,37 @@ public class FreelancerServiceImpl implements FreelancerService {
         return freelancerRepo.searchFreelancers(keyword, pageable).map(this::mapToResponse);
     }
 
+    // FIX: was calling findById(freelancerId) where freelancerId is actually the
+    // userId from the JWT token (passed via userDetails.getId() in the controller).
+    // FreelancerProfile ID and User ID are different — user ID=2 has profile ID=1.
+    // Changed to findByUserId() to match how every other method in this service works.
     @Override
     @Transactional
-    public void addSkill(Long freelancerId, Long skillId) {
-        FreelancerProfile profile = findById(freelancerId);
+    public void addSkill(Long userId, Long skillId) {
+        FreelancerProfile profile = freelancerRepo.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "userId", userId));
         Skill skill = skillRepository.findById(skillId)
                 .orElseThrow(() -> new ResourceNotFoundException("Skill", "id", skillId));
         profile.getSkills().add(skill);
         freelancerRepo.save(profile);
     }
 
+    // FIX: same userId vs profileId bug as addSkill above
     @Override
     @Transactional
-    public void removeSkill(Long freelancerId, Long skillId) {
-        FreelancerProfile profile = findById(freelancerId);
+    public void removeSkill(Long userId, Long skillId) {
+        FreelancerProfile profile = freelancerRepo.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "userId", userId));
         profile.getSkills().removeIf(s -> s.getId().equals(skillId));
         freelancerRepo.save(profile);
     }
 
+    // FIX: same userId vs profileId bug
     @Override
     @Transactional(readOnly = true)
-    public Set<SkillResponse> getSkills(Long freelancerId) {
-        FreelancerProfile profile = findById(freelancerId);
+    public Set<SkillResponse> getSkills(Long userId) {
+        FreelancerProfile profile = freelancerRepo.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "userId", userId));
         return profile.getSkills().stream()
                 .map(skill -> SkillResponse.builder()
                         .id(skill.getId())

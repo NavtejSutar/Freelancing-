@@ -15,6 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/contracts")
@@ -42,12 +43,18 @@ public class ContractController {
         return ResponseEntity.ok(ApiResponse.success("Contract created — both parties must sign", response));
     }
 
-    // UPDATED: now accepts signatureUrl as a request param — both parties must provide signature to accept
+    // FIX: signatureUrl now received in the request body instead of @RequestParam.
+    // A drawn signature is a base64 PNG string which can be 50-200KB in size.
+    // Sending that as a URL query parameter exceeded Tomcat's default header size
+    // limit (8KB), causing: "Request header is too large" -> 400 error -> frontend
+    // showed "Failed to sign contract". Moving it to the JSON request body removes
+    // that size constraint entirely.
     @PutMapping("/{id}/accept")
     public ResponseEntity<ApiResponse<ContractResponse>> acceptContract(
             @PathVariable Long id,
-            @RequestParam String signatureUrl,
+            @RequestBody Map<String, String> body,
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        String signatureUrl = body.get("signatureUrl");
         ContractResponse response = contractService.acceptContract(id, userDetails.getId(), signatureUrl);
         String message = response.getStatus().name().equals("ACTIVE")
                 ? "Contract is now active — both parties have signed!"

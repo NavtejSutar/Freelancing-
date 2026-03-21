@@ -29,6 +29,7 @@ public class JobPostResponse {
     private LocalDateTime deadline;
     private Long clientId;
     private String clientName;
+    private Long clientUserId; // ADDED: the User.id of the client — used by frontend to check ownership
     private Set<SkillResponse> skills;
     private int proposalCount;
     private LocalDateTime createdAt;

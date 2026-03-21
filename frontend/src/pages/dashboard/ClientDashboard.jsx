@@ -15,7 +15,7 @@ export default function ClientDashboard() {
 
   useEffect(() => {
     Promise.all([
-      jobService.getAll(0, 5).catch(() => ({ data: { data: { content: [] } } })),
+      jobService.getMyJobs(0, 5).catch(() => ({ data: { data: { content: [] } } })),
       contractService.getAll(0, 5).catch(() => ({ data: { data: { content: [] } } })),
     ]).then(([jobRes, contRes]) => {
       setJobs(jobRes.data.data?.content || []);
@@ -28,14 +28,36 @@ export default function ClientDashboard() {
   const openJobs = jobs.filter(j => j.status === 'OPEN').length;
   const activeContracts = contracts.filter(c => c.status === 'ACTIVE').length;
 
+  // Contracts where client hasn't signed yet
+  const pendingSignature = contracts.filter(c => c.status === 'PENDING_ACCEPTANCE' && !c.clientAccepted);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.firstName}!</h1>
-        <Link to="/jobs/create" className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+        <Link
+          to="/jobs/create"
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+        >
           <HiPlus className="w-5 h-5" /> Post a Job
         </Link>
       </div>
+
+      {/* Alert: contracts waiting for client to sign */}
+      {pendingSignature.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+          <p className="text-sm font-medium text-yellow-800">
+            ⚠️ You have {pendingSignature.length} contract{pendingSignature.length > 1 ? 's' : ''} waiting for your signature.
+          </p>
+          <div className="mt-2 flex gap-2 flex-wrap">
+            {pendingSignature.map(c => (
+              <Link key={c.id} to={`/contracts/${c.id}`} className="text-sm text-indigo-600 underline hover:text-indigo-800">
+                {c.title || `Contract #${c.id}`}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
@@ -95,7 +117,8 @@ export default function ClientDashboard() {
                 <Link key={c.id} to={`/contracts/${c.id}`} className="block p-3 rounded-lg hover:bg-gray-50 border border-gray-100">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="font-medium text-gray-900">Contract #{c.id}</p>
+                      <p className="font-medium text-gray-900">{c.title || `Contract #${c.id}`}</p>
+                      {/* FIX: was "₹${c.totalAmount}" — stray $ removed */}
                       <p className="text-sm text-gray-500 mt-0.5">₹{c.totalAmount}</p>
                     </div>
                     <StatusBadge status={c.status} />

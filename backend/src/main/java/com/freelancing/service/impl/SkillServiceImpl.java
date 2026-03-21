@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.freelancing.dto.request.SkillRequest;
+import com.freelancing.dto.response.SkillCategoryResponse;
 import com.freelancing.dto.response.SkillResponse;
 import com.freelancing.entity.Skill;
 import com.freelancing.entity.SkillCategory;
@@ -27,7 +28,12 @@ public class SkillServiceImpl implements SkillService {
     private final SkillCategoryRepository categoryRepo;
     private final ModelMapper modelMapper;
 
+    // FIX: @Transactional(readOnly = true) keeps the Hibernate session open while
+    // mapToResponse() accesses skill.getCategory().getName() on the lazy proxy.
+    // Without this, the session is closed before Jackson serializes, causing
+    // LazyInitializationException: Could not initialize proxy [SkillCategory#1] - no session
     @Override
+    @Transactional(readOnly = true)
     public List<SkillResponse> getAllSkills(Long categoryId) {
         if (categoryId != null) {
             return skillRepo.findByCategoryId(categoryId).stream()
@@ -88,7 +94,7 @@ public class SkillServiceImpl implements SkillService {
 
     @Override
     @Transactional
-    public void deleteSkill(Long id) { 
+    public void deleteSkill(Long id) {
         Skill skill = skillRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Skill", "id", id));
         skillRepo.delete(skill);
@@ -96,14 +102,21 @@ public class SkillServiceImpl implements SkillService {
 
     // --- Category methods ---
 
+    // FIX: @Transactional(readOnly = true) + map to DTO.
+    // Returning raw SkillCategory entity caused Jackson to serialize the lazy
+    // 'skills' collection after the session was closed. Mapping to SkillCategoryResponse
+    // inside the transaction avoids touching any lazy collections entirely.
     @Override
-    public List<SkillCategory> getAllCategories() {
-        return categoryRepo.findAll();
+    @Transactional(readOnly = true)
+    public List<SkillCategoryResponse> getAllCategories() {
+        return categoryRepo.findAll().stream()
+                .map(this::mapToCategoryResponse)
+                .collect(Collectors.toList());
     }
 
     @Override
     @Transactional
-    public SkillCategory createCategory(String name, String description) {
+    public SkillCategoryResponse createCategory(String name, String description) {
         if (categoryRepo.existsByName(name)) {
             throw new BadRequestException("Category with name '" + name + "' already exists");
         }
@@ -112,9 +125,8 @@ public class SkillServiceImpl implements SkillService {
                 .slug(name.toLowerCase().replaceAll("\\s+", "-"))
                 .description(description)
                 .build();
-        return categoryRepo.save(category);
+        return mapToCategoryResponse(categoryRepo.save(category));
     }
-
 
     @Transactional
     @Override
@@ -131,5 +143,14 @@ public class SkillServiceImpl implements SkillService {
             response.setCategoryName(skill.getCategory().getName());
         }
         return response;
+    }
+
+    private SkillCategoryResponse mapToCategoryResponse(SkillCategory cat) {
+        return SkillCategoryResponse.builder()
+                .id(cat.getId())
+                .name(cat.getName())
+                .slug(cat.getSlug())
+                .description(cat.getDescription())
+                .build();
     }
 }

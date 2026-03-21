@@ -47,10 +47,10 @@ public class Contract extends BaseEntity {
     private boolean freelancerAccepted = false;
 
     // ADDED: signature image URLs — stored after each party signs
-    @Column(name = "client_signature_url")
+    @Column(name = "client_signature_url", columnDefinition = "MEDIUMTEXT")
     private String clientSignatureUrl;
 
-    @Column(name = "freelancer_signature_url")
+    @Column(name = "freelancer_signature_url", columnDefinition = "MEDIUMTEXT")
     private String freelancerSignatureUrl;
 
     @Column(name = "client_signed_at")
