@@ -1,12 +1,14 @@
 package com.freelancing.service.impl;
 
 import com.freelancing.dto.request.FreelancerProfileRequest;
+import com.freelancing.dto.response.ContractResponse;
 import com.freelancing.dto.response.FreelancerProfileResponse;
 import com.freelancing.dto.response.SkillResponse;
 import com.freelancing.entity.FreelancerProfile;
 import com.freelancing.entity.Skill;
 import com.freelancing.entity.User;
-import com.freelancing.entity.enums.VerificationStatus;import com.freelancing.exception.BadRequestException;
+import com.freelancing.entity.enums.VerificationStatus;
+import com.freelancing.exception.BadRequestException;
 import com.freelancing.exception.ResourceNotFoundException;
 import com.freelancing.repository.FreelancerProfileRepository;
 import com.freelancing.repository.SkillRepository;
@@ -58,23 +60,21 @@ public class FreelancerServiceImpl implements FreelancerService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        // Profile may already exist (created during registration to store aadhaar)
-        // In that case, update it instead of creating a duplicate
-        FreelancerProfile profile = freelancerRepo.findByUserId(userId).orElse(null);
-
-        if (profile == null) {
-            profile = FreelancerProfile.builder()
-                    .user(user)
-                    .skills(new HashSet<>())
-                    .build();
+        if (freelancerRepo.findByUserId(userId).isPresent()) {
+            throw new BadRequestException("Freelancer profile already exists");
         }
 
-        profile.setTitle(request.getTitle());
-        if (request.getBio() != null) profile.setBio(request.getBio());
-        if (request.getHourlyRate() != null) profile.setHourlyRate(request.getHourlyRate());
-        if (request.getAvailabilityStatus() != null) profile.setAvailabilityStatus(request.getAvailabilityStatus());
-        if (request.getCity() != null) profile.setCity(request.getCity());
-        if (request.getCountry() != null) profile.setCountry(request.getCountry());
+        FreelancerProfile profile = FreelancerProfile.builder()
+                .title(request.getTitle())
+                .bio(request.getBio())
+                .hourlyRate(request.getHourlyRate())
+                .availabilityStatus(request.getAvailabilityStatus())
+                .jobStatus(request.getJobStatus())
+                .city(request.getCity())
+                .country(request.getCountry())
+                .user(user)
+                .skills(new HashSet<>())
+                .build();
 
         if (request.getSkillIds() != null && !request.getSkillIds().isEmpty()) {
             Set<Skill> skills = new HashSet<>(skillRepository.findAllById(request.getSkillIds()));
@@ -95,6 +95,7 @@ public class FreelancerServiceImpl implements FreelancerService {
         if (request.getBio() != null) profile.setBio(request.getBio());
         if (request.getHourlyRate() != null) profile.setHourlyRate(request.getHourlyRate());
         if (request.getAvailabilityStatus() != null) profile.setAvailabilityStatus(request.getAvailabilityStatus());
+        if (request.getJobStatus() != null) profile.setJobStatus(request.getJobStatus());
         if (request.getCity() != null) profile.setCity(request.getCity());
         if (request.getCountry() != null) profile.setCountry(request.getCountry());
 
@@ -111,6 +112,33 @@ public class FreelancerServiceImpl implements FreelancerService {
     @Transactional(readOnly = true)
     public Page<FreelancerProfileResponse> searchFreelancers(String keyword, Pageable pageable) {
         return freelancerRepo.searchFreelancers(keyword, pageable).map(this::mapToResponse);
+    }
+
+    // Your verification features
+    @Override
+    @Transactional(readOnly = true)
+    public Page<FreelancerProfileResponse> getFreelancersByVerificationStatus(VerificationStatus status, Pageable pageable) {
+        return freelancerRepo.findByVerificationStatus(status, pageable).map(this::mapToResponse);
+    }
+
+    @Override
+    @Transactional
+    public FreelancerProfileResponse verifyFreelancer(Long freelancerId) {
+        FreelancerProfile profile = findById(freelancerId);
+        profile.setVerificationStatus(VerificationStatus.VERIFIED);
+        profile.getUser().setActive(true);
+        profile = freelancerRepo.save(profile);
+        return mapToResponse(profile);
+    }
+
+    @Override
+    @Transactional
+    public FreelancerProfileResponse rejectFreelancer(Long freelancerId, String note) {
+        FreelancerProfile profile = findById(freelancerId);
+        profile.setVerificationStatus(VerificationStatus.REJECTED);
+        if (note != null && !note.isBlank()) profile.setVerificationNote(note);
+        profile = freelancerRepo.save(profile);
+        return mapToResponse(profile);
     }
 
     @Override
@@ -135,8 +163,9 @@ public class FreelancerServiceImpl implements FreelancerService {
 
     @Override
     @Transactional(readOnly = true)
-    public Set<SkillResponse> getSkills(Long freelancerId) {
-        FreelancerProfile profile = findById(freelancerId);
+    public Set<SkillResponse> getSkills(Long userId) {
+        FreelancerProfile profile = freelancerRepo.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "userId", userId));
         return profile.getSkills().stream()
                 .map(skill -> SkillResponse.builder()
                         .id(skill.getId())
@@ -146,38 +175,6 @@ public class FreelancerServiceImpl implements FreelancerService {
                         .categoryId(skill.getCategory() != null ? skill.getCategory().getId() : null)
                         .build())
                 .collect(Collectors.toSet());
-    }
-
-    // ── Aadhaar Verification ──
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<FreelancerProfileResponse> getFreelancersByVerificationStatus(String status, Pageable pageable) {
-        VerificationStatus vs = VerificationStatus.valueOf(status.toUpperCase());
-        return freelancerRepo.findByVerificationStatus(vs, pageable).map(this::mapToResponse);
-    }
-
-    @Override
-    @Transactional
-    public void verifyFreelancer(Long profileId, String note) {
-        FreelancerProfile profile = findById(profileId);
-        profile.setVerificationStatus(VerificationStatus.VERIFIED);
-        profile.setVerificationNote(note);
-        freelancerRepo.save(profile);
-        // Also activate the user account so they can log in
-        User user = profile.getUser();
-        user.setActive(true);
-        userRepository.save(user);
-    }
-
-    @Override
-    @Transactional
-    public void rejectFreelancer(Long profileId, String note) {
-        FreelancerProfile profile = findById(profileId);
-        profile.setVerificationStatus(VerificationStatus.REJECTED);
-        profile.setVerificationNote(note);
-        freelancerRepo.save(profile);
-        // Keep user inactive so they cannot log in
     }
 
     private FreelancerProfile findById(Long id) {
@@ -197,6 +194,14 @@ public class FreelancerServiceImpl implements FreelancerService {
                             .categoryId(s.getCategory() != null ? s.getCategory().getId() : null)
                             .build())
                     .collect(Collectors.toSet()));
+        }
+        if (profile.getContracts() != null) {
+            response.setContracts(profile.getContracts().stream()
+                .map(contract -> ContractResponse.builder()
+                    .id(contract.getId())
+                    .status(contract.getStatus())
+                    .build())
+                .collect(java.util.stream.Collectors.toList()));
         }
         return response;
     }

@@ -30,8 +30,9 @@ import ContractDetail from '../pages/contracts/ContractDetail';
 import MessageThreads from '../pages/messages/MessageThreads';
 import ChatRoom from '../pages/messages/ChatRoom';
 
-// Profile
+// Profile & Leaderboard
 import Profile from '../pages/profile/Profile';
+import FreelancerLeaderboard from '../pages/leaderboard/FreelancerLeaderboard';
 
 // Admin
 import AdminUsers from '../pages/admin/AdminUsers';
@@ -78,8 +79,9 @@ export default function AppRoutes() {
         <Route path="/messages" element={<MessageThreads />} />
         <Route path="/messages/:threadId" element={<ChatRoom />} />
 
-        {/* Profile & Settings */}
+        {/* Profile, Leaderboard & Settings */}
         <Route path="/profile" element={<Profile />} />
+        <Route path="/leaderboard" element={<FreelancerLeaderboard />} />
         <Route path="/settings" element={<Settings />} />
 
         {/* Notifications */}

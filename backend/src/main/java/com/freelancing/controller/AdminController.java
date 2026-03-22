@@ -3,6 +3,7 @@ package com.freelancing.controller;
 import com.freelancing.dto.response.ApiResponse;
 import com.freelancing.dto.response.FreelancerProfileResponse;
 import com.freelancing.dto.response.UserResponse;
+import com.freelancing.entity.enums.VerificationStatus;
 import com.freelancing.service.FreelancerService;
 import com.freelancing.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -53,14 +54,13 @@ public class AdminController {
 
     @GetMapping("/freelancers/pending")
     public ResponseEntity<ApiResponse<Page<FreelancerProfileResponse>>> getPendingVerifications(Pageable pageable) {
-        return ResponseEntity.ok(ApiResponse.success(freelancerService.getFreelancersByVerificationStatus("PENDING", pageable)));
+        return ResponseEntity.ok(ApiResponse.success(
+                freelancerService.getFreelancersByVerificationStatus(VerificationStatus.PENDING, pageable)));
     }
 
     @PutMapping("/freelancers/{id}/verify")
-    public ResponseEntity<ApiResponse<Void>> verifyFreelancer(
-            @PathVariable Long id,
-            @RequestParam(required = false) String note) {
-        freelancerService.verifyFreelancer(id, note);
+    public ResponseEntity<ApiResponse<Void>> verifyFreelancer(@PathVariable Long id) {
+        freelancerService.verifyFreelancer(id);
         return ResponseEntity.ok(ApiResponse.success("Freelancer verified", null));
     }
 

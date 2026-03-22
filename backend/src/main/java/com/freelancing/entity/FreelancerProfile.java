@@ -1,6 +1,7 @@
 package com.freelancing.entity;
 
 import com.freelancing.entity.enums.AvailabilityStatus;
+import com.freelancing.entity.enums.FreelancerJobStatus;
 import com.freelancing.entity.enums.VerificationStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -34,6 +35,11 @@ public class FreelancerProfile extends BaseEntity {
     @Builder.Default
     private AvailabilityStatus availabilityStatus = AvailabilityStatus.AVAILABLE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "job_status")
+    @Builder.Default
+    private FreelancerJobStatus jobStatus = FreelancerJobStatus.FULL_TIME;
+
     private String city;
     private String country;
 
@@ -49,7 +55,6 @@ public class FreelancerProfile extends BaseEntity {
     @Builder.Default
     private Integer totalReviews = 0;
 
-    // Aadhaar verification fields
     @Column(name = "aadhaar_number", length = 12)
     private String aadhaarNumber;
 

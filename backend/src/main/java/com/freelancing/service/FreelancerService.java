@@ -3,6 +3,7 @@ package com.freelancing.service;
 import com.freelancing.dto.request.FreelancerProfileRequest;
 import com.freelancing.dto.response.FreelancerProfileResponse;
 import com.freelancing.dto.response.SkillResponse;
+import com.freelancing.entity.enums.VerificationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -19,8 +20,8 @@ public interface FreelancerService {
     void removeSkill(Long userId, Long skillId);
     Set<SkillResponse> getSkills(Long freelancerId);
 
-    // Aadhaar verification
-    Page<FreelancerProfileResponse> getFreelancersByVerificationStatus(String status, Pageable pageable);
-    void verifyFreelancer(Long profileId, String note);
-    void rejectFreelancer(Long profileId, String note);
+    // Aadhaar verification (your feature)
+    Page<FreelancerProfileResponse> getFreelancersByVerificationStatus(VerificationStatus status, Pageable pageable);
+    FreelancerProfileResponse verifyFreelancer(Long profileId);
+    FreelancerProfileResponse rejectFreelancer(Long profileId, String note);
 }

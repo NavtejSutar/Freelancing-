@@ -118,6 +118,9 @@ export default function Navbar() {
                   <Link to="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setProfileOpen(false)}>
                     <HiUser className="w-4 h-4 mr-2" /> Profile
                   </Link>
+                  <Link to="/leaderboard" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setProfileOpen(false)}>
+                    <HiStar className="w-4 h-4 mr-2" /> Leaderboard
+                  </Link>
                   <Link to="/settings" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50" onClick={() => setProfileOpen(false)}>
                     <HiCog className="w-4 h-4 mr-2" /> Settings
                   </Link>

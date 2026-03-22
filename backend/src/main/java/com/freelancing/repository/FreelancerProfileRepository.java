@@ -16,10 +16,12 @@ public interface FreelancerProfileRepository extends JpaRepository<FreelancerPro
 
     Optional<FreelancerProfile> findByUserId(Long userId);
 
+    // Null-safe keyword search (fixed from friend's version)
     @Query("SELECT f FROM FreelancerProfile f WHERE " +
-           "LOWER(f.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
-           "LOWER(f.bio) LIKE LOWER(CONCAT('%', :keyword, '%'))")
+           "(:keyword IS NULL OR LOWER(f.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "OR LOWER(f.bio) LIKE LOWER(CONCAT('%', :keyword, '%')))")
     Page<FreelancerProfile> searchFreelancers(@Param("keyword") String keyword, Pageable pageable);
 
+    // Your Aadhaar verification feature
     Page<FreelancerProfile> findByVerificationStatus(VerificationStatus verificationStatus, Pageable pageable);
 }
