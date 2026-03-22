@@ -46,11 +46,11 @@ public class Contract extends BaseEntity {
     @Builder.Default
     private boolean freelancerAccepted = false;
 
-    // ADDED: signature image URLs — stored after each party signs
-    @Column(name = "client_signature_url", columnDefinition = "MEDIUMTEXT")
+    // TEXT works on both MySQL and PostgreSQL (MEDIUMTEXT is MySQL-only)
+    @Column(name = "client_signature_url", columnDefinition = "TEXT")
     private String clientSignatureUrl;
 
-    @Column(name = "freelancer_signature_url", columnDefinition = "MEDIUMTEXT")
+    @Column(name = "freelancer_signature_url", columnDefinition = "TEXT")
     private String freelancerSignatureUrl;
 
     @Column(name = "client_signed_at")

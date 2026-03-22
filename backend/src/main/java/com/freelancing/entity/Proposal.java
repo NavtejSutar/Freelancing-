@@ -36,8 +36,9 @@ public class Proposal extends BaseEntity {
     @Column(name = "estimated_duration")
     private String estimatedDuration;
 
-    @Column(name = "cover_letter_pdf_url", columnDefinition = "MEDIUMTEXT")
-    private String coverLetterPdfUrl; // stores base64 data URL of PDF — works on any deployment
+    // TEXT works on both MySQL and PostgreSQL (MEDIUMTEXT is MySQL-only)
+    @Column(name = "cover_letter_pdf_url", columnDefinition = "TEXT")
+    private String coverLetterPdfUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
