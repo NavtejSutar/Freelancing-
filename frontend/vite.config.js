@@ -1,16 +1,20 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   server: {
+    port: 5173,
     proxy: {
-      // In local dev: /api → http://localhost:8090/api
-      // In production: VITE_API_URL is set to the Render backend URL
       '/api': {
         target: 'http://localhost:8090',
         changeOrigin: true,
       },
+      '/ws': {
+        target: 'http://localhost:8090',
+        ws: true,
+      },
     },
   },
-})
+});
