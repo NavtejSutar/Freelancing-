@@ -38,13 +38,23 @@ public class ProposalServiceImpl implements ProposalService {
     @Transactional
     public ProposalResponse submitProposal(Long freelancerProfileId, ProposalRequest request) {
         FreelancerProfile freelancer = freelancerRepo.findByUserId(freelancerProfileId)
-                .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "id", freelancerProfileId));
+                .orElseThrow(() -> new ResourceNotFoundException("FreelancerProfile", "userId", freelancerProfileId));
 
         JobPost jobPost = jobPostRepo.findById(request.getJobPostId())
                 .orElseThrow(() -> new ResourceNotFoundException("JobPost", "id", request.getJobPostId()));
 
         if (proposalRepo.existsByFreelancerIdAndJobPostId(freelancer.getId(), request.getJobPostId())) {
             throw new BadRequestException("You have already submitted a proposal for this job");
+        }
+
+        // Budget range validation
+        if (jobPost.getBudgetMin() != null && request.getProposedRate().compareTo(jobPost.getBudgetMin()) < 0) {
+            throw new BadRequestException(
+                "Bid amount cannot be less than the job minimum budget of $" + jobPost.getBudgetMin());
+        }
+        if (jobPost.getBudgetMax() != null && request.getProposedRate().compareTo(jobPost.getBudgetMax()) > 0) {
+            throw new BadRequestException(
+                "Bid amount cannot exceed the job maximum budget of $" + jobPost.getBudgetMax());
         }
 
         Proposal proposal = Proposal.builder()
@@ -123,7 +133,6 @@ public class ProposalServiceImpl implements ProposalService {
     @Override
     @Transactional(readOnly = true)
     public Page<ProposalResponse> getProposalsByUserId(Long userId, Pageable pageable) {
-        // FIX: /my endpoint passes userId from JWT — use query that filters by freelancer.user.id
         return proposalRepo.findByFreelancerUserId(userId, pageable).map(this::mapToResponse);
     }
 

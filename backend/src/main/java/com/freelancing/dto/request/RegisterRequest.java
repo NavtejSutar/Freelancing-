@@ -27,4 +27,7 @@ public class RegisterRequest {
     private UserRole role;
 
     private String phoneNumber;
+
+    // Aadhaar number — required only for FREELANCER, validated in AuthServiceImpl
+    private String aadhaarNumber;
 }

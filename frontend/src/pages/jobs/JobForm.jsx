@@ -14,7 +14,7 @@ const schema = yup.object({
   budgetMin: yup.number().positive().required('Min budget is required'),
   budgetMax: yup.number().positive().min(yup.ref('budgetMin'), 'Must be >= min').required('Max budget is required'),
   experienceLevel: yup.string().required('Experience level is required'),
-  expectedDuration: yup.string(),
+  duration: yup.string(),  // FIXED: was 'expectedDuration', backend field is 'duration'
 });
 
 export default function JobForm() {
@@ -42,7 +42,7 @@ export default function JobForm() {
           budgetMin: job.budgetMin,
           budgetMax: job.budgetMax,
           experienceLevel: job.experienceLevel,
-          expectedDuration: job.expectedDuration,
+          duration: job.duration,  // FIXED: was job.expectedDuration
         });
         setSelectedSkills(job.skills?.map(s => s.id || s) || []);
       }).catch(() => toast.error('Failed to load job'));
@@ -62,7 +62,7 @@ export default function JobForm() {
         await jobService.update(id, { ...data, skillIds: selectedSkills });
         toast.success('Job updated!');
       } else {
-        const { data: res } = await jobService.create({ ...data, skillIds: selectedSkills });
+        await jobService.create({ ...data, skillIds: selectedSkills });
         toast.success('Job posted!');
       }
       navigate('/jobs/my');
@@ -145,7 +145,7 @@ export default function JobForm() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Expected Duration</label>
             <input
-              {...register('expectedDuration')}
+              {...register('duration')}  
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
               placeholder="e.g. 1-3 months"
             />

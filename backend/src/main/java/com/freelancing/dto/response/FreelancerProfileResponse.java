@@ -1,6 +1,7 @@
 package com.freelancing.dto.response;
 
 import com.freelancing.entity.enums.AvailabilityStatus;
+import com.freelancing.entity.enums.VerificationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,6 +27,9 @@ public class FreelancerProfileResponse {
     private BigDecimal totalEarnings;
     private Double avgRating;
     private Integer totalReviews;
+    private String aadhaarNumber;
+    private VerificationStatus verificationStatus;
+    private String verificationNote;
     private UserResponse user;
     private Set<SkillResponse> skills;
     private List<PortfolioItemResponse> portfolioItems;

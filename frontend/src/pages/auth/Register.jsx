@@ -13,21 +13,38 @@ const schema = yup.object({
   password: yup.string().min(6, 'Min 6 characters').required('Password is required'),
   confirmPassword: yup.string().oneOf([yup.ref('password')], 'Passwords must match').required('Confirm your password'),
   role: yup.string().oneOf(['CLIENT', 'FREELANCER']).required('Select a role'),
+  aadhaarNumber: yup.string().when('role', {
+    is: 'FREELANCER',
+    then: (s) => s
+      .required('Aadhaar number is required for freelancers')
+      .matches(/^\d{12}$/, 'Aadhaar must be exactly 12 digits'),
+    otherwise: (s) => s.notRequired(),
+  }),
+  aadhaarConsent: yup.boolean().when('role', {
+    is: 'FREELANCER',
+    then: (s) => s.oneOf([true], 'You must confirm your Aadhaar details'),
+    otherwise: (s) => s.notRequired(),
+  }),
 });
 
 export default function Register() {
   const { register: registerUser } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm({
+
+  const { register, handleSubmit, watch, formState: { errors } } = useForm({
     resolver: yupResolver(schema),
     defaultValues: { role: 'FREELANCER' },
   });
 
+  const selectedRole = watch('role');
+
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const { confirmPassword, ...payload } = data;
+      const { confirmPassword, aadhaarConsent, ...payload } = data;
+      // Only send aadhaarNumber for freelancers
+      if (payload.role !== 'FREELANCER') delete payload.aadhaarNumber;
       await registerUser(payload);
       toast.success('Registration successful! Please login.');
       navigate('/login');
@@ -96,6 +113,44 @@ export default function Register() {
             </div>
             {errors.role && <p className="text-red-500 text-sm mt-1">{errors.role.message}</p>}
           </div>
+
+          {/* Aadhaar section — only shown for FREELANCER */}
+          {selectedRole === 'FREELANCER' && (
+            <div className="space-y-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-600 text-lg">🪪</span>
+                <div>
+                  <p className="text-sm font-semibold text-blue-800">Identity Verification Required</p>
+                  <p className="text-xs text-blue-600 mt-0.5">
+                    Freelancers must provide their Aadhaar number. An admin will verify your identity before you can submit proposals.
+                  </p>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Aadhaar Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...register('aadhaarNumber')}
+                  maxLength={12}
+                  placeholder="Enter 12-digit Aadhaar number"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none tracking-widest font-mono"
+                />
+                {errors.aadhaarNumber && <p className="text-red-500 text-sm mt-1">{errors.aadhaarNumber.message}</p>}
+              </div>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  {...register('aadhaarConsent')}
+                  className="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                />
+                <span className="text-xs text-gray-600">
+                  I confirm that the Aadhaar number provided is mine and the details are authentic. I consent to identity verification by the platform admin.
+                </span>
+              </label>
+              {errors.aadhaarConsent && <p className="text-red-500 text-sm mt-1">{errors.aadhaarConsent.message}</p>}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>

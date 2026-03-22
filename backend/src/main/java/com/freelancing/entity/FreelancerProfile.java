@@ -1,11 +1,12 @@
 package com.freelancing.entity;
 
 import com.freelancing.entity.enums.AvailabilityStatus;
+import com.freelancing.entity.enums.VerificationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList; 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,6 +48,18 @@ public class FreelancerProfile extends BaseEntity {
     @Column(name = "total_reviews")
     @Builder.Default
     private Integer totalReviews = 0;
+
+    // Aadhaar verification fields
+    @Column(name = "aadhaar_number", length = 12)
+    private String aadhaarNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status")
+    @Builder.Default
+    private VerificationStatus verificationStatus = VerificationStatus.PENDING;
+
+    @Column(name = "verification_note", columnDefinition = "TEXT")
+    private String verificationNote;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

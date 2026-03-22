@@ -1,7 +1,9 @@
 package com.freelancing.controller;
 
 import com.freelancing.dto.response.ApiResponse;
+import com.freelancing.dto.response.FreelancerProfileResponse;
 import com.freelancing.dto.response.UserResponse;
+import com.freelancing.service.FreelancerService;
 import com.freelancing.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -17,17 +19,16 @@ import org.springframework.web.bind.annotation.*;
 public class AdminController {
 
     private final UserService userService;
+    private final FreelancerService freelancerService;
 
     @GetMapping("/users")
     public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(Pageable pageable) {
-        Page<UserResponse> response = userService.getAllUsers(pageable);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.success(userService.getAllUsers(pageable)));
     }
 
     @GetMapping("/users/{id}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable Long id) {
-        UserResponse response = userService.getUserById(id);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.success(userService.getUserById(id)));
     }
 
     @PutMapping("/users/{id}/ban")
@@ -47,5 +48,27 @@ public class AdminController {
         userService.verifyUser(id);
         return ResponseEntity.ok(ApiResponse.success("User verified", null));
     }
-}
 
+    // ── Freelancer Aadhaar verification ──
+
+    @GetMapping("/freelancers/pending")
+    public ResponseEntity<ApiResponse<Page<FreelancerProfileResponse>>> getPendingVerifications(Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(freelancerService.getFreelancersByVerificationStatus("PENDING", pageable)));
+    }
+
+    @PutMapping("/freelancers/{id}/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyFreelancer(
+            @PathVariable Long id,
+            @RequestParam(required = false) String note) {
+        freelancerService.verifyFreelancer(id, note);
+        return ResponseEntity.ok(ApiResponse.success("Freelancer verified", null));
+    }
+
+    @PutMapping("/freelancers/{id}/reject")
+    public ResponseEntity<ApiResponse<Void>> rejectFreelancer(
+            @PathVariable Long id,
+            @RequestParam(required = false) String note) {
+        freelancerService.rejectFreelancer(id, note);
+        return ResponseEntity.ok(ApiResponse.success("Freelancer verification rejected", null));
+    }
+}

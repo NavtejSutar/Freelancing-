@@ -20,8 +20,7 @@ export default function JobDetail() {
   const [proposalData, setProposalData] = useState({ coverLetter: '', bidAmount: '', estimatedDuration: '' });
   const [submitting, setSubmitting] = useState(false);
 
-  // Cover letter PDF upload state
-  const [coverLetterMode, setCoverLetterMode] = useState('type'); // 'type' | 'upload'
+  const [coverLetterMode, setCoverLetterMode] = useState('type');
   const [coverLetterFile, setCoverLetterFile] = useState(null);
   const [uploading, setUploading] = useState(false);
 
@@ -63,7 +62,6 @@ export default function JobDetail() {
   const handleSubmitProposal = async (e) => {
     e.preventDefault();
 
-    // Validation
     if (coverLetterMode === 'upload' && !coverLetterFile) {
       toast.error('Please select a PDF file for your cover letter');
       return;
@@ -73,12 +71,22 @@ export default function JobDetail() {
       return;
     }
 
+    // Budget range validation
+    const bid = parseFloat(proposalData.bidAmount);
+    if (job.budgetMin && bid < parseFloat(job.budgetMin)) {
+      toast.error(`Bid must be at least $${job.budgetMin} (job minimum)`);
+      return;
+    }
+    if (job.budgetMax && bid > parseFloat(job.budgetMax)) {
+      toast.error(`Bid cannot exceed $${job.budgetMax} (job maximum)`);
+      return;
+    }
+
     setSubmitting(true);
     let coverLetterPdfUrl = null;
     let coverLetterText = proposalData.coverLetter.trim();
 
     try {
-      // If freelancer uploaded a PDF, upload it first then attach the URL
       if (coverLetterMode === 'upload' && coverLetterFile) {
         setUploading(true);
         try {
@@ -90,7 +98,6 @@ export default function JobDetail() {
           return;
         }
         setUploading(false);
-        // Backend requires coverLetter to be non-blank, so use filename as fallback text
         if (!coverLetterText) {
           coverLetterText = `Cover letter attached as PDF: ${coverLetterFile.name}`;
         }
@@ -101,7 +108,7 @@ export default function JobDetail() {
         coverLetter: coverLetterText,
         jobPostId: parseInt(id),
         proposedRate: parseFloat(proposalData.bidAmount),
-        coverLetterPdfUrl, // null if typed, server URL if uploaded
+        coverLetterPdfUrl,
       });
 
       toast.success('Proposal submitted!');
@@ -146,7 +153,7 @@ export default function JobDetail() {
           {[
             { icon: HiCurrencyDollar, label: 'Budget', value: `$${job.budgetMin} - $${job.budgetMax}` },
             { icon: HiBriefcase, label: 'Type', value: job.budgetType === 'FIXED' ? 'Fixed Price' : 'Hourly' },
-            { icon: HiClock, label: 'Duration', value: job.expectedDuration || 'Not specified' },
+            { icon: HiClock, label: 'Duration', value: job.duration || 'Not specified' },
             { icon: HiUserGroup, label: 'Experience', value: job.experienceLevel?.replace(/_/g, ' ') || 'Any' },
           ].map((item) => (
             <div key={item.label} className="text-center p-3 bg-gray-50 rounded-lg">
@@ -184,7 +191,6 @@ export default function JobDetail() {
               {showProposalForm ? 'Cancel' : 'Submit Proposal'}
             </button>
           )}
-          {/* Only show Edit/Delete if this client owns the job */}
           {user?.role === 'CLIENT' && job.clientUserId === user?.id && (
             <>
               <Link to={`/jobs/${id}/edit`} className="px-6 py-2.5 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
@@ -202,11 +208,8 @@ export default function JobDetail() {
         <form onSubmit={handleSubmitProposal} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-4">
           <h2 className="text-lg font-semibold text-gray-900">Submit Your Proposal</h2>
 
-          {/* Cover Letter Section */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Cover Letter</label>
-
-            {/* Mode toggle */}
             <div className="flex gap-2 mb-3">
               <button
                 type="button"
@@ -280,7 +283,6 @@ export default function JobDetail() {
                     </div>
                   )}
                 </div>
-                {/* Optional extra note alongside the PDF */}
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">Optional note to accompany your PDF</label>
                   <textarea
@@ -297,14 +299,23 @@ export default function JobDetail() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bid Amount ($)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Bid Amount ($)
+                {job.budgetMin && job.budgetMax && (
+                  <span className="ml-2 text-xs text-gray-400 font-normal">
+                    Budget: ${job.budgetMin} – ${job.budgetMax}
+                  </span>
+                )}
+              </label>
               <input
                 type="number"
                 value={proposalData.bidAmount}
                 onChange={(e) => setProposalData(prev => ({ ...prev, bidAmount: e.target.value }))}
                 required
-                min="1"
+                min={job.budgetMin || 1}
+                max={job.budgetMax || undefined}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                placeholder={`$${job.budgetMin} – $${job.budgetMax}`}
               />
             </div>
             <div>

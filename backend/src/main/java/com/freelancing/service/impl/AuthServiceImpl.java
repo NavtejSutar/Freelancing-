@@ -3,10 +3,13 @@ package com.freelancing.service.impl;
 import com.freelancing.dto.request.*;
 import com.freelancing.dto.response.AuthResponse;
 import com.freelancing.dto.response.UserResponse;
+import com.freelancing.entity.FreelancerProfile;
 import com.freelancing.entity.RefreshToken;
 import com.freelancing.entity.User;
 import com.freelancing.entity.enums.UserRole;
+import com.freelancing.entity.enums.VerificationStatus;
 import com.freelancing.exception.BadRequestException;
+import com.freelancing.repository.FreelancerProfileRepository;
 import com.freelancing.repository.RefreshTokenRepository;
 import com.freelancing.repository.UserRepository;
 import com.freelancing.security.CustomUserDetails;
@@ -30,28 +33,11 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final FreelancerProfileRepository freelancerProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
     private final ModelMapper modelMapper;
-
-    // FIX: ModelMapper STRICT cannot match User.isActive() -> UserResponse.active.
-    // Manual mapping used everywhere instead of modelMapper.map(user, UserResponse.class).
-    private UserResponse toResponse(User user) {
-        return UserResponse.builder()
-                .id(user.getId())
-                .email(user.getEmail())
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .phoneNumber(user.getPhoneNumber())
-                .avatarUrl(user.getAvatarUrl())
-                .role(user.getRole())
-                .active(user.isActive())
-                .banned(user.isBanned())
-                .emailVerified(user.isEmailVerified())
-                .createdAt(user.getCreatedAt())
-                .build();
-    }
 
     @Override
     @Transactional
@@ -64,9 +50,13 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Cannot register as ADMIN");
         }
 
-        // All CLIENT accounts start inactive — admin must verify before they can log in.
-        // FREELANCER and other roles are active immediately.
-        boolean isActive = request.getRole() != UserRole.CLIENT;
+        // Aadhaar validation for freelancers
+        if (request.getRole() == UserRole.FREELANCER) {
+            String aadhaar = request.getAadhaarNumber();
+            if (aadhaar == null || !aadhaar.matches("\\d{12}")) {
+                throw new BadRequestException("A valid 12-digit Aadhaar number is required for freelancer registration");
+            }
+        }
 
         User user = User.builder()
                 .email(request.getEmail())
@@ -75,19 +65,22 @@ public class AuthServiceImpl implements AuthService {
                 .lastName(request.getLastName())
                 .phoneNumber(request.getPhoneNumber())
                 .role(request.getRole())
-                .active(isActive)  // FIX: was .isActive(isActive) — builder method is .active() after field rename
+                // Freelancers start inactive until admin verifies their Aadhaar
+                // Clients also start inactive until admin verifies them
+                .active(false)
                 .build();
 
         user = userRepository.save(user);
 
-        UserResponse userResponse = toResponse(user);  // FIX: was modelMapper.map(user, UserResponse.class)
-
-        // Client accounts must be verified by admin before they can log in.
-        // Return user info but no tokens — they cannot authenticate yet.
-        if (user.getRole() == UserRole.CLIENT && !user.isActive()) {
-            return AuthResponse.builder()
-                    .user(userResponse)
+        // If freelancer, create a minimal profile to store aadhaar + PENDING status
+        if (request.getRole() == UserRole.FREELANCER) {
+            FreelancerProfile profile = FreelancerProfile.builder()
+                    .title("New Freelancer")
+                    .aadhaarNumber(request.getAadhaarNumber())
+                    .verificationStatus(VerificationStatus.PENDING)
+                    .user(user)
                     .build();
+            freelancerProfileRepository.save(profile);
         }
 
         CustomUserDetails userDetails = CustomUserDetails.build(user);
@@ -98,20 +91,15 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .user(userResponse)
+                .user(modelMapper.map(user, UserResponse.class))
                 .build();
     }
 
     @Override
     public AuthResponse login(LoginRequest request) {
-        Authentication authentication;
-        try {
-            authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-            );
-        } catch (org.springframework.security.authentication.DisabledException ex) {
-            throw new BadRequestException("Client account pending admin verification");
-        }
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+        );
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         User user = userRepository.findByEmail(userDetails.getEmail())
@@ -121,10 +109,6 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Your account has been banned");
         }
 
-        if (user.getRole() == UserRole.CLIENT && !user.isActive()) {
-            throw new BadRequestException("Client account pending admin verification");
-        }
-
         String accessToken = jwtTokenProvider.generateAccessToken(userDetails);
         String refreshToken = createRefreshToken(user);
 
@@ -132,7 +116,7 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .user(toResponse(user))  // FIX: was modelMapper.map(user, UserResponse.class)
+                .user(modelMapper.map(user, UserResponse.class))
                 .build();
     }
 
@@ -159,7 +143,6 @@ public class AuthServiceImpl implements AuthService {
         CustomUserDetails userDetails = CustomUserDetails.build(user);
         String newAccessToken = jwtTokenProvider.generateAccessToken(userDetails);
 
-        // Rotate refresh token
         refreshToken.setRevoked(true);
         refreshTokenRepository.save(refreshToken);
         String newRefreshToken = createRefreshToken(user);
@@ -168,20 +151,19 @@ public class AuthServiceImpl implements AuthService {
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
-                .user(toResponse(user))  // FIX: was modelMapper.map(user, UserResponse.class)
+                .user(modelMapper.map(user, UserResponse.class))
                 .build();
     }
 
     @Override
     public void forgotPassword(ForgotPasswordRequest request) {
-        // TODO: Send password reset email via Gmail SMTP
         userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("No account found with this email"));
+        // TODO: Send password reset email
     }
 
     @Override
     public void resetPassword(ResetPasswordRequest request) {
-        // TODO: Validate token and reset password
         throw new UnsupportedOperationException("Password reset not yet implemented");
     }
 
