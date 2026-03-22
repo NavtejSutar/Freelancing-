@@ -3,12 +3,14 @@ package com.freelancing.service.impl;
 import com.freelancing.dto.request.*;
 import com.freelancing.dto.response.AuthResponse;
 import com.freelancing.dto.response.UserResponse;
+import com.freelancing.entity.ClientProfile;
 import com.freelancing.entity.FreelancerProfile;
 import com.freelancing.entity.RefreshToken;
 import com.freelancing.entity.User;
 import com.freelancing.entity.enums.UserRole;
 import com.freelancing.entity.enums.VerificationStatus;
 import com.freelancing.exception.BadRequestException;
+import com.freelancing.repository.ClientProfileRepository;
 import com.freelancing.repository.FreelancerProfileRepository;
 import com.freelancing.repository.RefreshTokenRepository;
 import com.freelancing.repository.UserRepository;
@@ -34,6 +36,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final FreelancerProfileRepository freelancerProfileRepository;
+    private final ClientProfileRepository clientProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthenticationManager authenticationManager;
@@ -50,29 +53,53 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Cannot register as ADMIN");
         }
 
-        // Aadhaar validation for freelancers
+        // ── Role-specific validation ──
         if (request.getRole() == UserRole.FREELANCER) {
+            if (request.getFirstName() == null || request.getFirstName().isBlank()) {
+                throw new BadRequestException("First name is required");
+            }
+            if (request.getLastName() == null || request.getLastName().isBlank()) {
+                throw new BadRequestException("Last name is required");
+            }
             String aadhaar = request.getAadhaarNumber();
             if (aadhaar == null || !aadhaar.matches("\\d{12}")) {
                 throw new BadRequestException("A valid 12-digit Aadhaar number is required for freelancer registration");
             }
         }
 
+        if (request.getRole() == UserRole.CLIENT) {
+            if (request.getCompanyName() == null || request.getCompanyName().isBlank()) {
+                throw new BadRequestException("Company name is required");
+            }
+            String gstin = request.getGstinNumber();
+            if (gstin == null || !gstin.matches("^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$")) {
+                throw new BadRequestException("A valid 15-character GSTIN is required for client registration");
+            }
+        }
+
+        // ── Build User ──
+        // For clients: store companyName in firstName, "-" in lastName
+        // For freelancers: store firstName and lastName normally
+        String firstName = request.getRole() == UserRole.CLIENT
+                ? request.getCompanyName()
+                : request.getFirstName();
+        String lastName = request.getRole() == UserRole.CLIENT
+                ? "-"
+                : request.getLastName();
+
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .firstName(request.getFirstName())
-                .lastName(request.getLastName())
+                .firstName(firstName)
+                .lastName(lastName)
                 .phoneNumber(request.getPhoneNumber())
                 .role(request.getRole())
-                // Freelancers start inactive until admin verifies their Aadhaar
-                // Clients also start inactive until admin verifies them
-                .active(false)
+                .active(false) // inactive until admin verifies
                 .build();
 
         user = userRepository.save(user);
 
-        // If freelancer, create a minimal profile to store aadhaar + PENDING status
+        // ── Create stub profile to store verification data ──
         if (request.getRole() == UserRole.FREELANCER) {
             FreelancerProfile profile = FreelancerProfile.builder()
                     .title("New Freelancer")
@@ -81,6 +108,15 @@ public class AuthServiceImpl implements AuthService {
                     .user(user)
                     .build();
             freelancerProfileRepository.save(profile);
+        }
+
+        if (request.getRole() == UserRole.CLIENT) {
+            ClientProfile profile = ClientProfile.builder()
+                    .gstinNumber(request.getGstinNumber())
+                    .verificationStatus(VerificationStatus.PENDING)
+                    .user(user)
+                    .build();
+            clientProfileRepository.save(profile);
         }
 
         CustomUserDetails userDetails = CustomUserDetails.build(user);

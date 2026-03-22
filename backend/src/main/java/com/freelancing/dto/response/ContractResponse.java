@@ -1,6 +1,7 @@
 package com.freelancing.dto.response;
 
 import com.freelancing.entity.enums.ContractStatus;
+import com.freelancing.entity.enums.PaymentStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,8 +31,6 @@ public class ContractResponse {
     private LocalDateTime freelancerSignedAt;
     private Long freelancerId;
     private String freelancerName;
-    // FIX: added freelancerUserId and clientUserId so the frontend knows
-    // who to message without needing a separate user lookup
     private Long freelancerUserId;
     private Long clientId;
     private String clientName;
@@ -41,4 +40,9 @@ public class ContractResponse {
     private Long proposalId;
     private List<MilestoneResponse> milestones;
     private LocalDateTime createdAt;
+
+    // Payment status for this contract — null means no payment initiated yet
+    // PENDING = payment submitted, waiting admin confirmation
+    // COMPLETED = admin confirmed payment
+    private PaymentStatus paymentStatus;
 }

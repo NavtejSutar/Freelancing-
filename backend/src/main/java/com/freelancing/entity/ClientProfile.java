@@ -1,5 +1,6 @@
 package com.freelancing.entity;
 
+import com.freelancing.entity.enums.VerificationStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,6 +21,17 @@ public class ClientProfile extends BaseEntity {
     private String website;
     private String city;
     private String country;
+
+    @Column(name = "gstin_number", length = 15)
+    private String gstinNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status")
+    @Builder.Default
+    private VerificationStatus verificationStatus = VerificationStatus.PENDING;
+
+    @Column(name = "verification_note", columnDefinition = "TEXT")
+    private String verificationNote;
 
     @Column(name = "total_spent", precision = 12, scale = 2)
     @Builder.Default

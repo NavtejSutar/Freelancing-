@@ -30,22 +30,21 @@ public class DisputeServiceImpl implements DisputeService {
     private final ContractRepository contractRepo;
     private final UserRepository userRepo;
 
-    // FIX: @Transactional(readOnly = true) keeps the Hibernate session open while
-    // mapToResponse() accesses lazy-loaded dispute.getInitiator().getFirstName().
-    // Without it the session closes before Jackson serializes, causing:
-    // LazyInitializationException: Could not initialize proxy [User#N] - no session
     @Override
     @Transactional(readOnly = true)
     public Page<DisputeResponse> getAllDisputes(Long userId, Pageable pageable) {
+        // Admin passes userId = null from the controller — return all disputes directly
+        if (userId == null) {
+            return disputeRepo.findAll(pageable).map(this::mapToResponse);
+        }
+
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
 
-        // Admin sees ALL disputes
         if (user.getRole() == UserRole.ADMIN) {
             return disputeRepo.findAll(pageable).map(this::mapToResponse);
         }
 
-        // Client/Freelancer: only disputes on contracts they are a party to
         return disputeRepo
                 .findByContractClientUserIdOrContractFreelancerUserId(userId, userId, pageable)
                 .map(this::mapToResponse);
@@ -73,7 +72,6 @@ public class DisputeServiceImpl implements DisputeService {
             throw new BadRequestException("You are not a party to this contract");
         }
 
-        // Prevent duplicate open disputes on the same contract
         if (disputeRepo.existsByContractIdAndStatus(request.getContractId(), DisputeStatus.OPEN)) {
             throw new BadRequestException(
                     "There is already an open dispute on this contract. " +
@@ -111,7 +109,6 @@ public class DisputeServiceImpl implements DisputeService {
             throw new BadRequestException("A resolution description is required");
         }
 
-        // Only the initiator or an admin can resolve
         boolean isAdmin = resolver.getRole() == UserRole.ADMIN;
         boolean isInitiator = dispute.getInitiator().getId().equals(resolverId);
         if (!isAdmin && !isInitiator) {
@@ -125,7 +122,6 @@ public class DisputeServiceImpl implements DisputeService {
         dispute.setResolvedBy(resolver);
         dispute.setResolvedAt(LocalDateTime.now());
 
-        // Restore contract to ACTIVE once dispute is resolved
         Contract contract = dispute.getContract();
         if (contract.getStatus() == ContractStatus.DISPUTED) {
             contract.setStatus(ContractStatus.ACTIVE);
@@ -156,7 +152,6 @@ public class DisputeServiceImpl implements DisputeService {
         return mapToResponse(disputeRepo.save(dispute));
     }
 
-    // FIX: @Transactional(readOnly = true) — same lazy-load fix as getAllDisputes
     @Override
     @Transactional(readOnly = true)
     public Page<DisputeResponse> getDisputesByContract(Long contractId, Pageable pageable) {

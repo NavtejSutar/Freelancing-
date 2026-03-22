@@ -9,11 +9,6 @@ import lombok.Data;
 
 @Data
 public class RegisterRequest {
-    @NotBlank(message = "First name is required")
-    private String firstName;
-
-    @NotBlank(message = "Last name is required")
-    private String lastName;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
@@ -28,6 +23,12 @@ public class RegisterRequest {
 
     private String phoneNumber;
 
-    // Aadhaar number — required only for FREELANCER, validated in AuthServiceImpl
+    // ── FREELANCER fields ──
+    private String firstName;
+    private String lastName;
     private String aadhaarNumber;
+
+    // ── CLIENT fields ──
+    private String companyName;
+    private String gstinNumber;
 }

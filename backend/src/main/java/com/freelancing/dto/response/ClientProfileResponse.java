@@ -1,5 +1,6 @@
 package com.freelancing.dto.response;
 
+import com.freelancing.entity.enums.VerificationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,6 +19,9 @@ public class ClientProfileResponse {
     private String website;
     private String city;
     private String country;
+    private String gstinNumber;
+    private VerificationStatus verificationStatus;
+    private String verificationNote;
     private BigDecimal totalSpent;
     private Double avgRating;
     private Integer totalReviews;

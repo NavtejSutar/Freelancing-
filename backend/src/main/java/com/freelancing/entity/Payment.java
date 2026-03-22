@@ -27,7 +27,7 @@ public class Payment extends BaseEntity {
 
     @Column(length = 3)
     @Builder.Default
-    private String currency = "USD";
+    private String currency = "INR";
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -38,8 +38,13 @@ public class Payment extends BaseEntity {
     @Column(name = "payment_type")
     private PaymentType paymentType;
 
+    // Auto-generated internal reference ID
     @Column(name = "transaction_id")
     private String transactionId;
+
+    // UPI transaction ID entered by the client after paying
+    @Column(name = "upi_transaction_id")
+    private String upiTransactionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "contract_id")

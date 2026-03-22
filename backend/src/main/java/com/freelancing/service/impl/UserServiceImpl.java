@@ -3,8 +3,6 @@ package com.freelancing.service.impl;
 import com.freelancing.dto.request.UpdateUserRequest;
 import com.freelancing.dto.response.UserResponse;
 import com.freelancing.entity.User;
-import com.freelancing.entity.enums.UserRole;
-import com.freelancing.exception.BadRequestException;
 import com.freelancing.exception.ResourceNotFoundException;
 import com.freelancing.repository.UserRepository;
 import com.freelancing.service.UserService;
@@ -44,8 +42,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse getCurrentUser(Long userId) {
-        User user = findUserById(userId);
-        return toResponse(user);
+        return toResponse(findUserById(userId));
     }
 
     @Override
@@ -58,8 +55,7 @@ public class UserServiceImpl implements UserService {
         if (request.getPhoneNumber() != null) user.setPhoneNumber(request.getPhoneNumber());
         if (request.getAvatarUrl() != null) user.setAvatarUrl(request.getAvatarUrl());
 
-        user = userRepository.save(user);
-        return toResponse(user);
+        return toResponse(userRepository.save(user));
     }
 
     @Override
@@ -82,8 +78,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse getUserById(Long id) {
-        User user = findUserById(id);
-        return toResponse(user);
+        return toResponse(findUserById(id));
     }
 
     @Override
@@ -108,14 +103,11 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public void verifyUser(Long id) {
         User user = findUserById(id);
-        if (user.getRole() != UserRole.CLIENT) {
-            throw new BadRequestException("Only client accounts require admin verification");
+        // Idempotent — silently succeed if already active
+        if (!user.isActive()) {
+            user.setActive(true);
+            userRepository.save(user);
         }
-        if (user.isActive()) {
-            throw new BadRequestException("User is already verified");
-        }
-        user.setActive(true);
-        userRepository.save(user);
     }
 
     private User findUserById(Long id) {

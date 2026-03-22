@@ -127,17 +127,21 @@ public class ContractServiceImpl implements ContractService {
         Contract contract = contractRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Contract", "id", id));
 
-        // FIX: enforce payment before completion — client must have initiated a payment
-        // and it must be in PENDING or COMPLETED state before marking the contract done.
-        boolean hasPaid = paymentRepo.existsByContractIdAndStatusIn(
-                id,
-                List.of(PaymentStatus.PENDING, PaymentStatus.COMPLETED)
-        );
-        if (!hasPaid) {
+        // Require COMPLETED (admin-confirmed) payment before allowing contract completion
+        boolean paymentConfirmed = paymentRepo.existsByContractIdAndStatusIn(
+                id, List.of(PaymentStatus.COMPLETED));
+        if (!paymentConfirmed) {
+            // Check if payment is pending (submitted but not yet confirmed)
+            boolean paymentPending = paymentRepo.existsByContractIdAndStatusIn(
+                    id, List.of(PaymentStatus.PENDING));
+            if (paymentPending) {
+                throw new BadRequestException(
+                        "Payment has been submitted but is awaiting admin confirmation. " +
+                        "You can mark the contract complete once the admin confirms your payment.");
+            }
             throw new BadRequestException(
-                    "Payment must be initiated before marking the contract as complete. " +
-                    "Please click 'Initiate Payment' first."
-            );
+                    "You must complete payment before marking the contract as complete. " +
+                    "Please click 'Pay via UPI' first.");
         }
 
         contract.setStatus(ContractStatus.COMPLETED);
@@ -186,8 +190,6 @@ public class ContractServiceImpl implements ContractService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .amount(request.getAmount())
-                // FIX: parse dueDate from String ("2026-03-19") to LocalDateTime
-                // Frontend date input sends date-only strings; we convert to start-of-day LocalDateTime
                 .dueDate(parseDueDate(request.getDueDate()))
                 .sortOrder(request.getSortOrder())
                 .status(MilestoneStatus.PENDING)
@@ -232,25 +234,15 @@ public class ContractServiceImpl implements ContractService {
         return modelMapper.map(milestone, MilestoneResponse.class);
     }
 
-    // ── Helpers ──
-
-    /**
-     * FIX: Parses dueDate from String to LocalDateTime.
-     * The frontend HTML date input sends "2026-03-19" (date only, no time).
-     * Jackson cannot deserialize that as LocalDateTime ("Text could not be parsed at index 10").
-     * We accept String in the request and parse it here, defaulting to start of day.
-     */
     private LocalDateTime parseDueDate(String dueDate) {
         if (dueDate == null || dueDate.isBlank()) return null;
         try {
-            // Try full datetime first (in case it's already ISO-8601 with time)
             if (dueDate.contains("T")) {
                 return LocalDateTime.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
             }
-            // Date-only string e.g. "2026-03-19" → start of that day
             return LocalDate.parse(dueDate, DateTimeFormatter.ISO_LOCAL_DATE).atStartOfDay();
         } catch (Exception e) {
-            throw new BadRequestException("Invalid due date format. Use YYYY-MM-DD (e.g. 2026-03-19).");
+            throw new BadRequestException("Invalid due date format. Use YYYY-MM-DD.");
         }
     }
 
@@ -258,6 +250,12 @@ public class ContractServiceImpl implements ContractService {
         List<MilestoneResponse> milestoneResponses = contract.getMilestones().stream()
                 .map(m -> modelMapper.map(m, MilestoneResponse.class))
                 .collect(Collectors.toList());
+
+        // Look up latest payment status for this contract
+        PaymentStatus paymentStatus = paymentRepo
+                .findTopByContractIdOrderByCreatedAtDesc(contract.getId())
+                .map(Payment::getStatus)
+                .orElse(null);
 
         return ContractResponse.builder()
                 .id(contract.getId())
@@ -275,8 +273,6 @@ public class ContractServiceImpl implements ContractService {
                 .freelancerSignedAt(contract.getFreelancerSignedAt())
                 .freelancerId(contract.getFreelancer().getId())
                 .freelancerName(contract.getFreelancer().getUser().getFirstName() + " " + contract.getFreelancer().getUser().getLastName())
-                // FIX: expose freelancer's and client's actual User IDs so the frontend
-                // can start a message thread without needing a separate lookup
                 .freelancerUserId(contract.getFreelancer().getUser().getId())
                 .clientId(contract.getClient().getId())
                 .clientName(contract.getClient().getUser().getFirstName() + " " + contract.getClient().getUser().getLastName())
@@ -286,6 +282,7 @@ public class ContractServiceImpl implements ContractService {
                 .proposalId(contract.getProposal() != null ? contract.getProposal().getId() : null)
                 .milestones(milestoneResponses)
                 .createdAt(contract.getCreatedAt())
+                .paymentStatus(paymentStatus)
                 .build();
     }
 }

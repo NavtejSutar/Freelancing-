@@ -12,6 +12,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
@@ -22,29 +24,36 @@ public class PaymentController {
     @GetMapping
     public ResponseEntity<ApiResponse<Page<PaymentResponse>>> getPayments(
             @AuthenticationPrincipal CustomUserDetails userDetails, Pageable pageable) {
-        Page<PaymentResponse> response = paymentService.getPayments(userDetails.getId(), pageable);
+        // Admin sees all payments; clients/freelancers see only their own
+        boolean isAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        Page<PaymentResponse> response = isAdmin
+                ? paymentService.getAllPayments(pageable)
+                : paymentService.getPayments(userDetails.getId(), pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<PaymentResponse>> getPaymentById(@PathVariable Long id) {
-        PaymentResponse response = paymentService.getPaymentById(id);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.success(paymentService.getPaymentById(id)));
     }
 
     @PostMapping("/contract/{contractId}")
     @PreAuthorize("hasRole('CLIENT')")
     public ResponseEntity<ApiResponse<PaymentResponse>> initiatePayment(
             @PathVariable Long contractId,
-            @AuthenticationPrincipal CustomUserDetails userDetails) {
-        PaymentResponse response = paymentService.initiatePayment(contractId, userDetails.getId());
-        return ResponseEntity.ok(ApiResponse.success("Payment initiated", response));
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestBody Map<String, String> body) {
+        String upiTransactionId = body.get("upiTransactionId");
+        PaymentResponse response = paymentService.initiatePayment(
+                contractId, userDetails.getId(), upiTransactionId);
+        return ResponseEntity.ok(ApiResponse.success("Payment submitted for admin confirmation", response));
     }
 
     @PutMapping("/{id}/confirm")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<PaymentResponse>> confirmPayment(@PathVariable Long id) {
-        PaymentResponse response = paymentService.confirmPayment(id);
-        return ResponseEntity.ok(ApiResponse.success("Payment confirmed", response));
+        return ResponseEntity.ok(ApiResponse.success("Payment confirmed",
+                paymentService.confirmPayment(id)));
     }
 }

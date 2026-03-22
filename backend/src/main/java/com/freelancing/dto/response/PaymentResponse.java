@@ -23,6 +23,7 @@ public class PaymentResponse {
     private PaymentStatus status;
     private PaymentType paymentType;
     private String transactionId;
+    private String upiTransactionId;
     private Long contractId;
     private LocalDateTime createdAt;
 }

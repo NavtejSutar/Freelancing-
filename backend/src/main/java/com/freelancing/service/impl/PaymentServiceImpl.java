@@ -15,6 +15,7 @@ import com.freelancing.entity.Payment;
 import com.freelancing.entity.User;
 import com.freelancing.entity.enums.PaymentStatus;
 import com.freelancing.entity.enums.PaymentType;
+import com.freelancing.exception.BadRequestException;
 import com.freelancing.exception.ResourceNotFoundException;
 import com.freelancing.repository.ContractRepository;
 import com.freelancing.repository.PaymentRepository;
@@ -39,6 +40,11 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
+    public Page<PaymentResponse> getAllPayments(Pageable pageable) {
+        return paymentRepo.findAll(pageable).map(this::mapToResponse);
+    }
+
+    @Override
     public PaymentResponse getPaymentById(Long id) {
         Payment payment = paymentRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Payment", "id", id));
@@ -47,11 +53,25 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public PaymentResponse initiatePayment(Long contractId, Long payerId) {
+    public PaymentResponse initiatePayment(Long contractId, Long payerId, String upiTransactionId) {
         Contract contract = contractRepo.findById(contractId)
                 .orElseThrow(() -> new ResourceNotFoundException("Contract", "id", contractId));
         User payer = userRepo.findById(payerId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", payerId));
+
+        if (upiTransactionId == null || upiTransactionId.isBlank()) {
+            throw new BadRequestException("UPI transaction ID is required");
+        }
+
+        // Block duplicate payments — if a PENDING or COMPLETED payment already exists, reject
+        if (paymentRepo.existsByContractIdAndStatus(contractId, PaymentStatus.PENDING)) {
+            throw new BadRequestException(
+                    "A payment is already pending admin confirmation for this contract. " +
+                    "Please wait for the admin to confirm it.");
+        }
+        if (paymentRepo.existsByContractIdAndStatus(contractId, PaymentStatus.COMPLETED)) {
+            throw new BadRequestException("Payment has already been confirmed for this contract.");
+        }
 
         BigDecimal amount = contract.getTotalAmount();
         BigDecimal platformFee = amount.multiply(PLATFORM_FEE_RATE).setScale(2, RoundingMode.HALF_UP);
@@ -61,10 +81,11 @@ public class PaymentServiceImpl implements PaymentService {
                 .amount(amount)
                 .platformFee(platformFee)
                 .netAmount(netAmount)
-                .currency("USD")
+                .currency("INR")
                 .status(PaymentStatus.PENDING)
-                .paymentType(PaymentType.MILESTONE_RELEASE) 
+                .paymentType(PaymentType.MILESTONE_RELEASE)
                 .transactionId(UUID.randomUUID().toString())
+                .upiTransactionId(upiTransactionId.trim())
                 .contract(contract)
                 .payer(payer)
                 .build();
@@ -93,6 +114,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .status(payment.getStatus())
                 .paymentType(payment.getPaymentType())
                 .transactionId(payment.getTransactionId())
+                .upiTransactionId(payment.getUpiTransactionId())
                 .contractId(payment.getContract() != null ? payment.getContract().getId() : null)
                 .createdAt(payment.getCreatedAt())
                 .build();

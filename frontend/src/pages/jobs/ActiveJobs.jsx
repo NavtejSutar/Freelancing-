@@ -8,9 +8,13 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { toast } from 'react-toastify';
 import {
-  HiChevronDown, HiChevronUp, HiPlus, HiUpload, HiDownload,
-  HiCheckCircle, HiX, HiExternalLink, HiCurrencyRupee
+  HiChevronDown, HiChevronUp, HiPlus, HiUpload,
+  HiCheckCircle, HiX, HiExternalLink
 } from 'react-icons/hi';
+
+// Replace with your actual UPI ID
+const UPI_ID = 'YOUR_UPI_ID@upi';
+const UPI_NAME = 'FreelanceHub';
 
 export default function ActiveJobs() {
   const { user } = useAuth();
@@ -19,26 +23,30 @@ export default function ActiveJobs() {
 
   const [contracts, setContracts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState({}); // contractId → true/false
-  const [milestones, setMilestones] = useState({}); // contractId → []
-  const [submissions, setSubmissions] = useState({}); // contractId → []
-  const [acting, setActing] = useState({}); // contractId → bool
+  const [expanded, setExpanded] = useState({});
+  const [milestones, setMilestones] = useState({});
+  const [submissions, setSubmissions] = useState({});
+  const [acting, setActing] = useState({});
 
   // Milestone form state per contract
-  const [showMilestoneForm, setShowMilestoneForm] = useState({}); // contractId → bool
-  const [milestoneData, setMilestoneData] = useState({}); // contractId → { title, description, amount, dueDate }
+  const [showMilestoneForm, setShowMilestoneForm] = useState({});
+  const [milestoneData, setMilestoneData] = useState({});
 
-  // Work submission form state per milestone
-  const [showSubmitWork, setShowSubmitWork] = useState(null); // milestoneId
+  // Work submission state per milestone
+  const [showSubmitWork, setShowSubmitWork] = useState(null);
   const [submitDesc, setSubmitDesc] = useState('');
   const [submitLinks, setSubmitLinks] = useState(['']);
   const [submitting, setSubmitting] = useState(false);
+
+  // UPI Payment modal state
+  const [paymentModal, setPaymentModal] = useState(null); // { contractId, totalAmount }
+  const [upiTxnId, setUpiTxnId] = useState('');
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   const loadContracts = useCallback(() => {
     contractService.getAll(0, 50)
       .then(({ data }) => {
         const all = data.data?.content || [];
-        // Only active + disputed contracts (in-progress work)
         const active = all.filter(c => c.status === 'ACTIVE' || c.status === 'DISPUTED');
         setContracts(active);
       })
@@ -51,7 +59,6 @@ export default function ActiveJobs() {
   const toggleExpand = async (contractId) => {
     setExpanded(prev => ({ ...prev, [contractId]: !prev[contractId] }));
     if (!milestones[contractId]) {
-      // Lazy load milestones + submissions when expanding
       try {
         const [msRes, subRes] = await Promise.all([
           contractService.getMilestones(contractId),
@@ -76,24 +83,39 @@ export default function ActiveJobs() {
     } catch {}
   };
 
-  const setActingFor = (contractId, val) => setActing(prev => ({ ...prev, [contractId]: val }));
+  const setActingFor = (contractId, val) =>
+    setActing(prev => ({ ...prev, [contractId]: val }));
 
-  const handleInitiatePayment = async (contractId, totalAmount) => {
-    if (!window.confirm(`Initiate payment of ₹${totalAmount}?\n\nThis creates a payment record. After admin confirmation you can mark the contract complete.`)) return;
-    setActingFor(contractId, true);
+  // ── UPI Payment Modal ──
+  const openPaymentModal = (contractId, totalAmount) => {
+    document.body.style.overflow = 'hidden';
+    setPaymentModal({ contractId, totalAmount });
+    setUpiTxnId('');
+  };
+
+  const closePaymentModal = () => {
+    document.body.style.overflow = '';
+    setPaymentModal(null);
+    setUpiTxnId('');
+  };
+
+  const handleSubmitPayment = async () => {
+    if (!upiTxnId.trim()) { toast.error('Please enter your UPI transaction ID'); return; }
+    setPaymentSubmitting(true);
     try {
-      await paymentService.initiate(contractId);
-      toast.success('Payment initiated — admin will confirm it shortly');
+      await paymentService.initiate(paymentModal.contractId, upiTxnId.trim());
+      toast.success('Payment submitted! Admin will confirm within 24 hours.');
+      closePaymentModal();
       loadContracts();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to initiate payment');
+      toast.error(err.response?.data?.message || 'Failed to submit payment');
     } finally {
-      setActingFor(contractId, false);
+      setPaymentSubmitting(false);
     }
   };
 
+  // ── Mark Complete ──
   const handleMarkComplete = async (contractId) => {
-    if (!window.confirm('Mark this contract as complete? Make sure payment has been initiated first.')) return;
     setActingFor(contractId, true);
     try {
       await contractService.complete(contractId);
@@ -111,9 +133,7 @@ export default function ActiveJobs() {
       await contractService.completeMilestone(contractId, milestoneId);
       toast.success('Milestone approved');
       refreshContractData(contractId);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed');
-    }
+    } catch (err) { toast.error(err.response?.data?.message || 'Failed'); }
   };
 
   const handleAddMilestone = async (e, contractId) => {
@@ -177,15 +197,13 @@ export default function ActiveJobs() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Active Jobs</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            {contracts.length === 0
-              ? 'No active jobs at the moment.'
-              : `${contracts.length} active contract${contracts.length !== 1 ? 's' : ''} in progress`}
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Active Jobs</h1>
+        <p className="text-sm text-gray-500 mt-0.5">
+          {contracts.length === 0
+            ? 'No active jobs at the moment.'
+            : `${contracts.length} active contract${contracts.length !== 1 ? 's' : ''} in progress`}
+        </p>
       </div>
 
       {contracts.length === 0 ? (
@@ -193,7 +211,9 @@ export default function ActiveJobs() {
           <HiCheckCircle className="w-12 h-12 text-gray-300 mx-auto" />
           <p className="text-gray-500 mt-3 font-medium">No active jobs</p>
           <p className="text-sm text-gray-400 mt-1">
-            {isFreelancer ? 'Active contracts will appear here once both parties sign.' : 'Post a job and accept a proposal to get started.'}
+            {isFreelancer
+              ? 'Active contracts will appear here once both parties sign.'
+              : 'Post a job and accept a proposal to get started.'}
           </p>
           {isClient && (
             <Link to="/jobs/create" className="mt-4 inline-block px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
@@ -216,6 +236,7 @@ export default function ActiveJobs() {
             const cMilestoneForm = milestoneData[contract.id] || { title: '', description: '', amount: '', dueDate: '' };
             const completedMilestones = cMilestones.filter(m => m.status === 'APPROVED').length;
             const isDisputed = contract.status === 'DISPUTED';
+            const paymentStatus = contract.paymentStatus; // null | PENDING | COMPLETED
 
             return (
               <div key={contract.id} className={`bg-white rounded-xl shadow-sm border ${isDisputed ? 'border-red-300' : 'border-gray-200'} overflow-hidden`}>
@@ -241,7 +262,6 @@ export default function ActiveJobs() {
                       )}
                     </div>
 
-                    {/* Quick stats */}
                     <div className="flex items-center gap-4 flex-shrink-0">
                       <div className="text-center hidden sm:block">
                         <p className="text-xs text-gray-400">Contract Value</p>
@@ -258,30 +278,48 @@ export default function ActiveJobs() {
                       <button
                         onClick={() => toggleExpand(contract.id)}
                         className="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                        title={isOpen ? 'Collapse' : 'Expand'}
                       >
                         {isOpen ? <HiChevronUp className="w-5 h-5" /> : <HiChevronDown className="w-5 h-5" />}
                       </button>
                     </div>
                   </div>
 
-                  {/* Client quick actions */}
+                  {/* ── Client payment actions (replaces old Initiate Payment + Mark Complete) ── */}
                   {isClient && !isDisputed && (
-                    <div className="flex gap-2 mt-4 flex-wrap">
-                      <button
-                        onClick={() => handleInitiatePayment(contract.id, contract.totalAmount)}
-                        disabled={isActing}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
-                      >
-                        <HiCurrencyRupee className="w-4 h-4" /> Initiate Payment
-                      </button>
-                      <button
-                        onClick={() => handleMarkComplete(contract.id)}
-                        disabled={isActing}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium"
-                      >
-                        <HiCheckCircle className="w-4 h-4" /> Mark Complete
-                      </button>
+                    <div className="flex gap-2 mt-4 flex-wrap items-center">
+                      {/* No payment yet — show Pay button */}
+                      {!paymentStatus && (
+                        <button
+                          onClick={() => openPaymentModal(contract.id, contract.totalAmount)}
+                          disabled={isActing}
+                          className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+                        >
+                          💳 Pay via UPI
+                        </button>
+                      )}
+                      {/* Payment pending admin confirmation */}
+                      {paymentStatus === 'PENDING' && (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                          <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                          <span className="text-yellow-700 font-medium">Payment pending admin confirmation</span>
+                        </div>
+                      )}
+                      {/* Payment confirmed — show Mark Complete */}
+                      {paymentStatus === 'COMPLETED' && (
+                        <>
+                          <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm">
+                            <span className="text-green-600">✓</span>
+                            <span className="text-green-700 font-medium">Payment confirmed</span>
+                          </div>
+                          <button
+                            onClick={() => handleMarkComplete(contract.id)}
+                            disabled={isActing}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm font-medium"
+                          >
+                            <HiCheckCircle className="w-4 h-4" /> Mark Complete
+                          </button>
+                        </>
+                      )}
                       <Link
                         to={`/contracts/${contract.id}`}
                         className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"
@@ -292,7 +330,20 @@ export default function ActiveJobs() {
                   )}
 
                   {isFreelancer && (
-                    <div className="flex gap-2 mt-4 flex-wrap">
+                    <div className="flex gap-2 mt-4 flex-wrap items-center">
+                      {/* Show payment status to freelancer too */}
+                      {paymentStatus === 'PENDING' && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                          <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                          <span className="text-yellow-700 font-medium">Client payment pending confirmation</span>
+                        </div>
+                      )}
+                      {paymentStatus === 'COMPLETED' && (
+                        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm">
+                          <span className="text-green-600">✓</span>
+                          <span className="text-green-700 font-medium">Payment confirmed</span>
+                        </div>
+                      )}
                       <Link
                         to={`/contracts/${contract.id}`}
                         className="flex items-center gap-1.5 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 text-sm font-medium"
@@ -306,13 +357,10 @@ export default function ActiveJobs() {
                 {/* ── Expanded Milestones Panel ── */}
                 {isOpen && (
                   <div className="border-t border-gray-100 bg-gray-50 p-5 space-y-4">
-
-                    {/* Milestone list header */}
                     <div className="flex items-center justify-between">
                       <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
                         Milestones {cMilestones.length > 0 && `(${completedMilestones}/${cMilestones.length} done)`}
                       </h3>
-                      {/* Both parties can add milestones */}
                       {!isDisputed && (
                         <button
                           onClick={() => setShowMilestoneForm(prev => ({ ...prev, [contract.id]: !prev[contract.id] }))}
@@ -323,7 +371,6 @@ export default function ActiveJobs() {
                       )}
                     </div>
 
-                    {/* Add milestone form */}
                     {showMilestoneForm[contract.id] && (
                       <form onSubmit={(e) => handleAddMilestone(e, contract.id)}
                         className="p-4 bg-white rounded-lg border border-indigo-100 space-y-3 shadow-sm">
@@ -331,24 +378,21 @@ export default function ActiveJobs() {
                           <input
                             value={cMilestoneForm.title}
                             onChange={(e) => setMilestoneData(p => ({ ...p, [contract.id]: { ...cMilestoneForm, title: e.target.value } }))}
-                            placeholder="Milestone title *"
-                            required
+                            placeholder="Milestone title *" required
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                           />
                           <input
                             type="number"
                             value={cMilestoneForm.amount}
                             onChange={(e) => setMilestoneData(p => ({ ...p, [contract.id]: { ...cMilestoneForm, amount: e.target.value } }))}
-                            placeholder="Amount (₹) *"
-                            required
+                            placeholder="Amount (₹) *" required
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                           />
                         </div>
                         <textarea
                           value={cMilestoneForm.description}
                           onChange={(e) => setMilestoneData(p => ({ ...p, [contract.id]: { ...cMilestoneForm, description: e.target.value } }))}
-                          placeholder="Description (optional)"
-                          rows={2}
+                          placeholder="Description (optional)" rows={2}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                         />
                         <div className="flex items-center gap-3">
@@ -373,7 +417,6 @@ export default function ActiveJobs() {
                       </form>
                     )}
 
-                    {/* Milestone cards */}
                     {cMilestones.length === 0 ? (
                       <p className="text-sm text-gray-400 text-center py-4">
                         No milestones yet. Add one to track deliverables.
@@ -407,7 +450,6 @@ export default function ActiveJobs() {
                                     )}
                                   </div>
                                 </div>
-                                {/* Client: approve milestone */}
                                 {isClient && ms.status === 'IN_PROGRESS' && (
                                   <button
                                     onClick={() => handleApproveMilestone(contract.id, ms.id)}
@@ -418,10 +460,8 @@ export default function ActiveJobs() {
                                 )}
                               </div>
 
-                              {/* Work submission section */}
                               {!isDisputed && (
                                 <div className="mt-3 pt-3 border-t border-current border-opacity-10 space-y-2">
-                                  {/* Freelancer: submit work */}
                                   {isFreelancer && (ms.status === 'PENDING' || ms.status === 'IN_PROGRESS') && (
                                     showSubmitWork === ms.id ? (
                                       <div className="space-y-2 bg-white rounded-lg p-3 border border-gray-200">
@@ -449,21 +489,17 @@ export default function ActiveJobs() {
                                                 className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
                                               />
                                               {submitLinks.length > 1 && (
-                                                <button
-                                                  type="button"
+                                                <button type="button"
                                                   onClick={() => setSubmitLinks(submitLinks.filter((_, i) => i !== idx))}
-                                                  className="text-gray-400 hover:text-red-500"
-                                                >
+                                                  className="text-gray-400 hover:text-red-500">
                                                   <HiX className="w-4 h-4" />
                                                 </button>
                                               )}
                                             </div>
                                           ))}
-                                          <button
-                                            type="button"
+                                          <button type="button"
                                             onClick={() => setSubmitLinks([...submitLinks, ''])}
-                                            className="text-xs text-indigo-600 hover:text-indigo-500 flex items-center gap-1"
-                                          >
+                                            className="text-xs text-indigo-600 hover:text-indigo-500 flex items-center gap-1">
                                             <HiPlus className="w-3 h-3" /> Add another link
                                           </button>
                                         </div>
@@ -478,8 +514,7 @@ export default function ActiveJobs() {
                                           </button>
                                           <button
                                             onClick={() => { setShowSubmitWork(null); setSubmitDesc(''); setSubmitLinks(['']); }}
-                                            className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm"
-                                          >
+                                            className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm">
                                             Cancel
                                           </button>
                                         </div>
@@ -494,7 +529,6 @@ export default function ActiveJobs() {
                                     )
                                   )}
 
-                                  {/* Latest submission card */}
                                   {latestSub && (
                                     <div className={`p-3 rounded-lg text-sm ${
                                       latestSub.status === 'APPROVED' ? 'bg-green-100 border border-green-200' :
@@ -506,7 +540,6 @@ export default function ActiveJobs() {
                                         <StatusBadge status={latestSub.status} />
                                       </div>
                                       <p className="text-gray-700">{latestSub.description}</p>
-
                                       {latestSub.attachmentUrls?.length > 0 && (
                                         <div className="mt-2 space-y-1">
                                           <p className="text-xs text-gray-500 font-medium">📁 Attached:</p>
@@ -518,23 +551,17 @@ export default function ActiveJobs() {
                                           ))}
                                         </div>
                                       )}
-
                                       <p className="text-xs text-gray-400 mt-1">
                                         {new Date(latestSub.createdAt || latestSub.submittedAt).toLocaleString()}
                                       </p>
-
                                       {isClient && latestSub.status === 'PENDING' && (
                                         <div className="flex gap-2 mt-2">
-                                          <button
-                                            onClick={() => handleApproveSubmission(contract.id, latestSub.id)}
-                                            className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700"
-                                          >
+                                          <button onClick={() => handleApproveSubmission(contract.id, latestSub.id)}
+                                            className="px-3 py-1 bg-green-600 text-white rounded-lg text-xs hover:bg-green-700">
                                             ✓ Approve
                                           </button>
-                                          <button
-                                            onClick={() => handleRejectSubmission(contract.id, latestSub.id)}
-                                            className="px-3 py-1 bg-red-50 text-red-600 rounded-lg text-xs hover:bg-red-100"
-                                          >
+                                          <button onClick={() => handleRejectSubmission(contract.id, latestSub.id)}
+                                            className="px-3 py-1 bg-red-50 text-red-600 rounded-lg text-xs hover:bg-red-100">
                                             Request Revision
                                           </button>
                                         </div>
@@ -549,40 +576,83 @@ export default function ActiveJobs() {
                       </div>
                     )}
 
-                    {/* Bottom quick links */}
-                    <div className="flex gap-3 pt-2 border-t border-gray-200 flex-wrap">
-                      <Link
-                        to={`/contracts/${contract.id}`}
-                        className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-500"
-                      >
+                    <div className="flex gap-3 pt-2 border-t border-gray-200">
+                      <Link to={`/contracts/${contract.id}`}
+                        className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-500">
                         <HiExternalLink className="w-4 h-4" /> View Full Contract & Sign
                       </Link>
-                      {isClient && !isDisputed && (
-                        <>
-                          <span className="text-gray-300">·</span>
-                          <button
-                            onClick={() => handleInitiatePayment(contract.id, contract.totalAmount)}
-                            disabled={isActing}
-                            className="flex items-center gap-1 text-sm text-green-600 hover:text-green-500 disabled:opacity-50"
-                          >
-                            <HiCurrencyRupee className="w-4 h-4" /> Initiate Payment
-                          </button>
-                          <span className="text-gray-300">·</span>
-                          <button
-                            onClick={() => handleMarkComplete(contract.id)}
-                            disabled={isActing}
-                            className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-500 disabled:opacity-50"
-                          >
-                            <HiCheckCircle className="w-4 h-4" /> Mark Complete
-                          </button>
-                        </>
-                      )}
                     </div>
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ── UPI Payment Modal ── */}
+      {paymentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5 my-auto">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">💳 Pay via UPI</h2>
+              <button onClick={closePaymentModal} className="text-gray-400 hover:text-gray-600">
+                <HiX className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="text-center p-4 bg-indigo-50 rounded-xl">
+              <p className="text-3xl font-bold text-indigo-700">₹{paymentModal.totalAmount}</p>
+              <p className="text-sm text-gray-500 mt-1">Total contract amount</p>
+            </div>
+
+            <div className="text-center space-y-3">
+              <p className="text-sm font-medium text-gray-700">Scan QR code to pay</p>
+              <div className="flex justify-center">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${UPI_ID}%26pn=${UPI_NAME}%26am=${paymentModal.totalAmount}%26cu=INR`}
+                  alt="UPI QR Code"
+                  className="w-48 h-48 border-2 border-indigo-100 rounded-xl"
+                />
+              </div>
+              <div className="bg-gray-50 rounded-lg px-4 py-2 inline-block">
+                <p className="text-xs text-gray-500">UPI ID</p>
+                <p className="font-mono font-semibold text-gray-900">{UPI_ID}</p>
+              </div>
+              <p className="text-xs text-gray-400">Use GPay, PhonePe, Paytm, BHIM or any UPI app</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Enter UPI Transaction ID after payment <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={upiTxnId}
+                onChange={(e) => setUpiTxnId(e.target.value)}
+                placeholder="e.g. 316894521234"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+              />
+              <p className="text-xs text-gray-400">Find this in your UPI app under transaction history</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleSubmitPayment}
+                disabled={paymentSubmitting || !upiTxnId.trim()}
+                className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {paymentSubmitting ? 'Submitting...' : 'I have paid — Submit'}
+              </button>
+              <button onClick={closePaymentModal}
+                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200">
+                Cancel
+              </button>
+            </div>
+
+            <p className="text-xs text-center text-gray-400">
+              Admin will verify your payment within 24 hours using the transaction ID.
+            </p>
+          </div>
         </div>
       )}
     </div>

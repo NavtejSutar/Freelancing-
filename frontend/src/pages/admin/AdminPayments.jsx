@@ -42,7 +42,7 @@ export default function AdminPayments() {
 
       {payments.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-          <p className="text-gray-500">No payments.</p>
+          <p className="text-gray-500">No payments yet.</p>
         </div>
       ) : (
         <>
@@ -52,7 +52,8 @@ export default function AdminPayments() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fee</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Platform Fee</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">UPI Txn ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -62,13 +63,24 @@ export default function AdminPayments() {
                 {payments.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-900">#{p.id}</td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">${p.amount}</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">${p.platformFee}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">₹{p.amount}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">₹{p.platformFee}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700 font-mono">
+                      {p.upiTransactionId
+                        ? <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs">{p.upiTransactionId}</span>
+                        : <span className="text-gray-400">—</span>
+                      }
+                    </td>
                     <td className="px-6 py-4"><StatusBadge status={p.status} /></td>
                     <td className="px-6 py-4 text-sm text-gray-500">{new Date(p.createdAt).toLocaleDateString()}</td>
                     <td className="px-6 py-4">
                       {p.status === 'PENDING' && (
-                        <button onClick={() => handleConfirm(p.id)} className="text-sm text-green-600 hover:text-green-500">Confirm</button>
+                        <button
+                          onClick={() => handleConfirm(p.id)}
+                          className="text-sm text-green-600 hover:text-green-500 font-medium"
+                        >
+                          ✓ Confirm
+                        </button>
                       )}
                     </td>
                   </tr>

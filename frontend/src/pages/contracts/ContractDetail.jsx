@@ -12,6 +12,10 @@ import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { toast } from 'react-toastify';
 import { HiPlus, HiCheckCircle, HiDownload, HiUpload, HiStar, HiExclamationCircle, HiChat, HiX } from 'react-icons/hi';
 
+// ── Replace YOUR_UPI_ID@upi with your actual UPI ID ──
+const UPI_ID = 'navtejsutar@okicici';
+const UPI_NAME = 'FreelanceHub';
+
 // ── PDF generation ──
 const downloadContractPdf = async (contract, milestones) => {
   const { jsPDF } = await import('jspdf');
@@ -103,6 +107,11 @@ export default function ContractDetail() {
   const [acting, setActing] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
+  // UPI Payment modal
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [upiTxnId, setUpiTxnId] = useState('');
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+
   // Signature
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -192,13 +201,31 @@ export default function ContractDetail() {
     finally { setActing(false); }
   };
 
-  const handleInitiatePayment = async () => {
-    if (!window.confirm(`Initiate payment of ₹${contract.totalAmount} for this contract?\n\nThis creates a payment record that an admin will confirm. After initiating payment you can then mark the contract complete.`)) return;
+  // Opens UPI modal instead of window.confirm
+  const handleInitiatePayment = () => {
+    document.body.style.overflow = 'hidden';
+    setShowPaymentModal(true);
+  };
+
+  const closePaymentModal = () => {
+    document.body.style.overflow = '';
+    setShowPaymentModal(false);
+    setUpiTxnId('');
+  };
+
+  const handleSubmitPayment = async () => {
+    if (!upiTxnId.trim()) { toast.error('Please enter your UPI transaction ID'); return; }
+    setPaymentSubmitting(true);
     try {
-      await paymentService.initiate(id);
-      toast.success('Payment initiated — you can now mark the contract as complete after admin confirmation');
+      await paymentService.initiate(id, upiTxnId.trim());
+      toast.success('Payment submitted! Admin will confirm within 24 hours.');
+      closePaymentModal();
       loadData();
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed to initiate payment'); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit payment');
+    } finally {
+      setPaymentSubmitting(false);
+    }
   };
 
   const handleAddMilestone = async (e) => {
@@ -297,7 +324,6 @@ export default function ContractDetail() {
   const mySignatureUrl = isClient ? contract.clientSignatureUrl : contract.freelancerSignatureUrl;
   const mySignedAt = isClient ? contract.clientSignedAt : contract.freelancerSignedAt;
   const hasReviewed = reviews.some(r => r.reviewerId === user?.id);
-  // openDispute: if an OPEN dispute exists, hide the "Raise Dispute" button so users can't create duplicates
   const openDispute = disputes.find(d => d.status === 'OPEN');
 
   return (
@@ -377,7 +403,6 @@ export default function ContractDetail() {
           </button>
         </div>
 
-        {/* Signature section */}
         {isPendingAcceptance && (
           !alreadySigned ? (
             <div className="border-t bg-blue-50 px-8 py-6">
@@ -463,14 +488,33 @@ export default function ContractDetail() {
         <div className="flex gap-3 flex-wrap">
           {isActive && isClient && (
             <>
-              <button onClick={handleInitiatePayment}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">
-                💳 Initiate Payment
-              </button>
-              <button onClick={() => handleContractAction('complete')} disabled={acting}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm">
-                ✓ Mark Complete
-              </button>
+              {/* Show Pay button only if no payment submitted yet */}
+              {!contract.paymentStatus && (
+                <button onClick={handleInitiatePayment}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium">
+                  💳 Pay via UPI
+                </button>
+              )}
+              {/* Show payment status badge if payment submitted */}
+              {contract.paymentStatus === 'PENDING' && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
+                  <span className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                  <span className="text-yellow-700 font-medium">Payment pending admin confirmation</span>
+                </div>
+              )}
+              {contract.paymentStatus === 'COMPLETED' && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-sm">
+                  <span className="text-green-600">✓</span>
+                  <span className="text-green-700 font-medium">Payment confirmed</span>
+                </div>
+              )}
+              {/* Mark Complete only when payment is confirmed by admin */}
+              {contract.paymentStatus === 'COMPLETED' && (
+                <button onClick={() => handleContractAction('complete')} disabled={acting}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 text-sm">
+                  ✓ Mark Complete
+                </button>
+              )}
               <button onClick={() => handleContractAction('cancel')} disabled={acting}
                 className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 disabled:opacity-50 text-sm">
                 Cancel Contract
@@ -487,7 +531,6 @@ export default function ContractDetail() {
               <HiChat className="w-4 h-4" /> Message {isClient ? contract.freelancerName?.split(' ')[0] : contract.clientName?.split(' ')[0]}
             </button>
           )}
-          {/* Only show Raise Dispute when contract is active AND there is no open dispute already */}
           {(isActive || isDisputed) && !openDispute && (
             <button onClick={() => setShowDisputeForm(true)}
               className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm">
@@ -512,74 +555,66 @@ export default function ContractDetail() {
 
       {/* ── Disputes Panel ── */}
       {disputes.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6">
-          <h2 className="text-lg font-semibold text-red-700 mb-4 flex items-center gap-2">
-            <HiExclamationCircle className="w-5 h-5" /> Disputes
-          </h2>
-          <div className="space-y-4">
-            {disputes.map((d) => {
-              const isInitiator = d.initiatorId === user?.id;
-              // Only the person who raised the dispute can resolve it from here.
-              // Admin resolves from the Admin Disputes panel.
-              const canResolve = isInitiator && d.status === 'OPEN';
-              return (
-                <div key={d.id} className="p-4 bg-red-50 rounded-lg border border-red-100">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <p className="font-semibold text-gray-900">{d.reason}</p>
-                      {d.description && <p className="text-sm text-gray-600 mt-1">{d.description}</p>}
-                      <p className="text-xs text-gray-400 mt-1">
-                        Raised by {d.initiatorName} · {new Date(d.createdAt).toLocaleString()}
-                      </p>
-                      {d.resolution && (
-                        <div className="mt-2 p-2 bg-white rounded border border-gray-200">
-                          <p className="text-xs font-semibold text-gray-700">Resolution:</p>
-                          <p className="text-sm text-gray-600">{d.resolution}</p>
-                        </div>
-                      )}
-                    </div>
-                    <StatusBadge status={d.status} />
-                  </div>
-
-                  {canResolve && (
-                    <div className="mt-3 pt-3 border-t border-red-100">
-                      {resolvingDisputeId === d.id ? (
-                        <div className="space-y-2">
-                          <textarea
-                            value={disputeResolution}
-                            onChange={(e) => setDisputeResolution(e.target.value)}
-                            placeholder="Describe how the issue was resolved or why you are withdrawing this dispute..."
-                            rows={2}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-300 outline-none"
-                          />
-                          <div className="flex gap-2">
-                            <button onClick={() => handleResolveDispute(d.id)}
-                              className="px-4 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 font-medium">
-                              Confirm Resolution
-                            </button>
-                            <button onClick={() => { setResolvingDisputeId(null); setDisputeResolution(''); }}
-                              className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm">
-                              Cancel
-                            </button>
+        <div className="bg-white rounded-xl shadow-sm border border-red-200 p6">
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-red-700 mb-4 flex items-center gap-2">
+              <HiExclamationCircle className="w-5 h-5" /> Disputes
+            </h2>
+            <div className="space-y-4">
+              {disputes.map((d) => {
+                const isInitiator = d.initiatorId === user?.id;
+                const canResolve = isInitiator && d.status === 'OPEN';
+                return (
+                  <div key={d.id} className="p-4 bg-red-50 rounded-lg border border-red-100">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">{d.reason}</p>
+                        {d.description && <p className="text-sm text-gray-600 mt-1">{d.description}</p>}
+                        <p className="text-xs text-gray-400 mt-1">
+                          Raised by {d.initiatorName} · {new Date(d.createdAt).toLocaleString()}
+                        </p>
+                        {d.resolution && (
+                          <div className="mt-2 p-2 bg-white rounded border border-gray-200">
+                            <p className="text-xs font-semibold text-gray-700">Resolution:</p>
+                            <p className="text-sm text-gray-600">{d.resolution}</p>
                           </div>
-                        </div>
-                      ) : (
-                        <button onClick={() => setResolvingDisputeId(d.id)}
-                          className="text-sm text-green-700 font-semibold hover:underline">
-                          ✓ Mark as Resolved / Withdraw Dispute
-                        </button>
-                      )}
+                        )}
+                      </div>
+                      <StatusBadge status={d.status} />
                     </div>
-                  )}
-
-                  {d.status === 'OPEN' && !isInitiator && (
-                    <p className="text-xs text-gray-400 mt-2 italic">
-                      Only the person who raised this dispute can resolve it. An admin can also intervene from the admin panel.
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+                    {canResolve && (
+                      <div className="mt-3 pt-3 border-t border-red-100">
+                        {resolvingDisputeId === d.id ? (
+                          <div className="space-y-2">
+                            <textarea value={disputeResolution} onChange={(e) => setDisputeResolution(e.target.value)}
+                              placeholder="Describe how the issue was resolved..." rows={2}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-red-300 outline-none" />
+                            <div className="flex gap-2">
+                              <button onClick={() => handleResolveDispute(d.id)}
+                                className="px-4 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 font-medium">
+                                Confirm Resolution
+                              </button>
+                              <button onClick={() => { setResolvingDisputeId(null); setDisputeResolution(''); }}
+                                className="px-4 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm">Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => setResolvingDisputeId(d.id)}
+                            className="text-sm text-green-700 font-semibold hover:underline">
+                            ✓ Mark as Resolved / Withdraw Dispute
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {d.status === 'OPEN' && !isInitiator && (
+                      <p className="text-xs text-gray-400 mt-2 italic">
+                        Only the person who raised this dispute can resolve it.
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -739,8 +774,7 @@ export default function ContractDetail() {
                         showSubmitWork === ms.id ? (
                           <div className="space-y-2">
                             <textarea value={submitDescription} onChange={(e) => setSubmitDescription(e.target.value)}
-                              placeholder="Describe what you've completed..."
-                              rows={3}
+                              placeholder="Describe what you've completed..." rows={3}
                               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
                             <div>
                               <p className="text-xs text-gray-500 font-medium mb-1 flex items-center gap-1">
@@ -748,16 +782,10 @@ export default function ContractDetail() {
                               </p>
                               {submitLinks.map((link, idx) => (
                                 <div key={idx} className="flex gap-2 mb-1.5">
-                                  <input
-                                    value={link}
-                                    onChange={(e) => {
-                                      const updated = [...submitLinks];
-                                      updated[idx] = e.target.value;
-                                      setSubmitLinks(updated);
-                                    }}
+                                  <input value={link}
+                                    onChange={(e) => { const updated = [...submitLinks]; updated[idx] = e.target.value; setSubmitLinks(updated); }}
                                     placeholder="https://drive.google.com/... or https://github.com/..."
-                                    className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                                  />
+                                    className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 outline-none" />
                                   {submitLinks.length > 1 && (
                                     <button type="button" onClick={() => setSubmitLinks(submitLinks.filter((_, i) => i !== idx))}
                                       className="text-gray-400 hover:text-red-500">
@@ -832,6 +860,76 @@ export default function ContractDetail() {
           </div>
         )}
       </div>
+
+      {/* ── UPI Payment Modal ── */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-5">
+            <div className="flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">💳 Pay via UPI</h2>
+              <button onClick={closePaymentModal}
+                className="text-gray-400 hover:text-gray-600">
+                <HiX className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="text-center p-4 bg-indigo-50 rounded-xl">
+              <p className="text-3xl font-bold text-indigo-700">₹{contract.totalAmount}</p>
+              <p className="text-sm text-gray-500 mt-1">Total contract amount</p>
+            </div>
+
+            <div className="text-center space-y-3">
+              <p className="text-sm font-medium text-gray-700">Scan QR code to pay</p>
+              <div className="flex justify-center">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=${UPI_ID}%26pn=${UPI_NAME}%26am=${contract.totalAmount}%26cu=INR`}
+                  alt="UPI QR Code"
+                  className="w-48 h-48 border-2 border-indigo-100 rounded-xl"
+                />
+              </div>
+              <div className="bg-gray-50 rounded-lg px-4 py-2 inline-block">
+                <p className="text-xs text-gray-500">UPI ID</p>
+                <p className="font-mono font-semibold text-gray-900">{UPI_ID}</p>
+              </div>
+              <p className="text-xs text-gray-400">Use GPay, PhonePe, Paytm, BHIM or any UPI app</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Enter UPI Transaction ID after payment <span className="text-red-500">*</span>
+              </label>
+              <input
+                value={upiTxnId}
+                onChange={(e) => setUpiTxnId(e.target.value)}
+                placeholder="e.g. 316894521234"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-mono"
+              />
+              <p className="text-xs text-gray-400">Find this in your UPI app under transaction history</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleSubmitPayment}
+                disabled={paymentSubmitting || !upiTxnId.trim()}
+                className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {paymentSubmitting ? 'Submitting...' : 'I have paid — Submit'}
+              </button>
+              <button
+                onClick={closePaymentModal}
+                className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <p className="text-xs text-center text-gray-400">
+              Admin will verify your payment within 24 hours using the transaction ID.
+            </p>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
