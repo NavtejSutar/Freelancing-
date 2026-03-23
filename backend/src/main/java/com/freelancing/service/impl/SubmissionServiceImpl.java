@@ -29,6 +29,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     private final MilestoneRepository milestoneRepo;
 
     @Override
+    @Transactional(readOnly = true)
     public SubmissionResponse getSubmissionById(Long id) {
         Submission submission = submissionRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission", "id", id));
@@ -47,7 +48,7 @@ public class SubmissionServiceImpl implements SubmissionService {
         if (hasActive) {
             throw new BadRequestException("An active submission already exists for this milestone");
         }
-            
+
         Submission submission = Submission.builder()
                 .description(request.getDescription())
                 .status(SubmissionStatus.SUBMITTED)
@@ -98,7 +99,7 @@ public class SubmissionServiceImpl implements SubmissionService {
         Submission submission = submissionRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Submission", "id", id));
         submission.setStatus(SubmissionStatus.REVISION_REQUESTED);
-        submission.setReviewedAt(LocalDateTime.now()); 
+        submission.setReviewedAt(LocalDateTime.now());
 
         Milestone milestone = submission.getMilestone();
         milestone.setStatus(MilestoneStatus.REVISION_REQUESTED);
@@ -109,6 +110,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<SubmissionResponse> getSubmissionsByContract(Long contractId) {
         return submissionRepo.findByMilestoneContractId(contractId).stream()
                 .map(this::mapToResponse)
@@ -116,6 +118,7 @@ public class SubmissionServiceImpl implements SubmissionService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<SubmissionResponse> getSubmissionsByMilestone(Long milestoneId) {
         return submissionRepo.findByMilestoneId(milestoneId).stream()
                 .map(this::mapToResponse)
