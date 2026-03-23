@@ -45,7 +45,8 @@ public class Submission extends BaseEntity {
     @Column(name = "reviewed_at")
     private LocalDateTime reviewedAt;
 
-    @ElementCollection
+    // EAGER so attachmentUrls is loaded within the session — avoids LazyInitializationException
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "submission_attachments", joinColumns = @JoinColumn(name = "submission_id"))
     @Column(name = "attachment_url")
     @Builder.Default
